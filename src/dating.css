@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Dating Module - Ultra Premium & Interactive UI Styles
+   ========================================================================== */
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(3deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.4), 0 0 50px -15px rgba(236, 72, 153, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px -2px rgba(244, 63, 94, 0.7), 0 0 70px -10px rgba(236, 72, 153, 0.4);
+  }
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.18); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.18); }
+  70% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-heartbeat {
+  animation: heartBeat 1.8s ease-in-out infinite;
+}
+
+/* Glassmorphism Classes */
+.glass-dating-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(244, 63, 94, 0.08), 0 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.glass-dating-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.glass-dark-overlay {
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.85) 85%, rgba(0,0,0,0.95) 100%);
+}
+
+/* Gradient Text & Highlights */
+.gradient-dating-text {
+  background: linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-dating-bg {
+  background: linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #8b5cf6 100%);
+}
+
+/* Range Slider */
+input[type="range"].dating-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+input[type="range"].dating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f43f5e, #ec4899);
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(244, 63, 94, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 2px solid #ffffff;
+}
+
+input[type="range"].dating-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 5px 15px rgba(244, 63, 94, 0.6);
+}
+
+/* Custom scrollbars */
+.dating-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.dating-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dating-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(244, 63, 94, 0.2);
+  border-radius: 10px;
+}
+.dating-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.4);
+}
