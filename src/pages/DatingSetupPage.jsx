@@ -25,8 +25,8 @@ import datingService from '../services/datingService';
 const STEPS = [
   { id: 1, label: 'Thông tin cơ bản', icon: User, color: 'from-pink-500 to-rose-600' },
   { id: 2, label: 'Ảnh hồ sơ', icon: Camera, color: 'from-purple-500 to-pink-500' },
-  { id: 3, label: 'Sở thích & Gu', icon: Sparkles, color: 'from-amber-400 to-orange-500' },
-  { id: 4, label: 'Tiêu chí & Vị trí', icon: SlidersHorizontal, color: 'from-sky-500 to-blue-600' },
+  { id: 3, label: 'Sở thích & Gu', icon: Sparkles, color: 'from-violet-500 to-pink-500' },
+  { id: 4, label: 'Tiêu chí & Vị trí', icon: SlidersHorizontal, color: 'from-indigo-500 to-blue-600' },
 ];
 
 const inputClass =

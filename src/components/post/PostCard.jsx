@@ -24,7 +24,12 @@ import ReactionPicker, { REACTION_ICONS } from './ReactionPicker';
 import ReactedUsersModal from './ReactedUsersModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
-export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
+export default function PostCard({
+  post,
+  onPostDeleted,
+  onPostUpdated,
+  initialShowComments = false,
+}) {
   const { user: currentUser, currentUserId } = useUser();
   // Use currentUserId from context (already normalised there)
   const postUid = post.userId ?? post.authorId ?? post.user?.id;
@@ -39,7 +44,7 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
   const [totalComments, setTotalComments] = useState(
     Number(post.commentCount ?? post.totalComments ?? 0)
   );
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(initialShowComments);
   const [isSaved, setIsSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -291,13 +296,22 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
     return types.length > 0 ? types : totalReactions > 0 ? ['👍'] : [];
   })();
 
+  // --- Show more/less for long captions ---
+  const CAPTION_LIMIT = 200;
+  const [showFullCaption, setShowFullCaption] = useState(false);
+  const captionText = post.content || '';
+  const isCaptionLong = captionText.length > CAPTION_LIMIT;
+  const displayCaption = showFullCaption || !isCaptionLong
+    ? captionText
+    : captionText.slice(0, CAPTION_LIMIT).trimEnd();
+
   return (
-    <div className="bg-white rounded-3xl mb-4 overflow-hidden border border-gray-200/80 shadow-xs transition-all">
-      {/* 1. Instagram Header */}
+    <div className="bg-white rounded-2xl mb-3 overflow-hidden border border-slate-200 shadow-card hover:shadow-card-hover transition-shadow duration-200">
+      {/* 1. Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to={`/users/${post.userId || post.authorId}`} className="relative group select-none">
-            <div className="p-[2px] rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600">
+            <div className="p-[2px] rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-pink-500 shadow-xs">
               <div className="p-[1.5px] bg-white rounded-full">
                 <img
                   src={post.avatarUrl || 'https://via.placeholder.com/40'}
@@ -405,50 +419,37 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
         </div>
       </div>
 
-      {/* 2. Instagram Media Container */}
+      {/* 2. Media Container */}
       {mediaList.length > 0 && (
         <div
           onDoubleClick={handleDoubleClickMedia}
-          className={`relative grid gap-0.5 bg-black overflow-hidden select-none cursor-pointer ${
+          className={`relative grid gap-0.5 bg-slate-900 overflow-hidden select-none cursor-pointer ${
             mediaList.length === 1
               ? 'grid-cols-1 max-h-[600px]'
               : mediaList.length === 2
-              ? 'grid-cols-2 max-h-[450px]'
-              : 'grid-cols-2 max-h-[500px]'
+              ? 'grid-cols-2 max-h-[420px]'
+              : 'grid-cols-2 max-h-[480px]'
           }`}
         >
-          {/* Double-tap Floating Heart Animation */}
+          {/* Double-tap Heart Animation */}
           <AnimatePresence>
             {showHeartPop && (
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [0, 1.35, 1, 1.1, 0], opacity: [0, 1, 1, 0.9, 0] }}
-                transition={{ duration: 0.85, ease: 'easeOut' }}
+                animate={{ scale: [0, 1.3, 1, 1.1, 0], opacity: [0, 1, 1, 0.9, 0] }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
               >
-                <Heart size={105} className="fill-rose-500 text-rose-500 drop-shadow-[0_10px_30px_rgba(244,63,94,0.7)]" />
+                <Heart size={96} className="fill-rose-500 text-rose-500 drop-shadow-[0_8px_24px_rgba(244,63,94,0.65)]" />
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Floating Media Stats Pill */}
-          <div className="absolute bottom-2.5 right-2.5 z-20 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-full text-white text-[11px] font-bold flex items-center gap-2.5 shadow-md pointer-events-none select-none">
-            <span className="flex items-center gap-1">
-              <Heart size={12} className="fill-rose-500 text-rose-500" />
-              <span>{totalReactions}</span>
-            </span>
-            <span className="w-0.5 h-2.5 bg-white/30 rounded" />
-            <span className="flex items-center gap-1">
-              <MessageCircle size={12} className="fill-white/80" />
-              <span>{totalComments}</span>
-            </span>
-          </div>
 
           {mediaList.map((media, idx) => {
             const url = media.mediaUrl || media.url;
             const isVideo = media.mediaType === 'VIDEO';
             return (
-              <div key={media.id || idx} className="relative w-full h-full min-h-[260px] overflow-hidden bg-black flex items-center justify-center">
+              <div key={media.id || idx} className="relative w-full h-full min-h-[240px] overflow-hidden bg-slate-900 flex items-center justify-center">
                 {isVideo ? (
                   <video src={url} controls className="w-full h-full object-contain max-h-[580px]" />
                 ) : (
@@ -456,9 +457,7 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
                     src={url}
                     alt=""
                     className="w-full h-full object-cover"
-                    onClick={(e) => {
-                      // Allow single click to open, double click to heart
-                    }}
+                    loading="lazy"
                   />
                 )}
               </div>
@@ -467,9 +466,9 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
         </div>
       )}
 
-      {/* 3. Instagram / Facebook Action Bar (Heart, Comment, Share, Bookmark) */}
-      <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-        <div className="flex items-center gap-3 sm:gap-4">
+      {/* 3. Action Bar */}
+      <div className="px-4 pt-2.5 pb-1 flex items-center justify-between">
+        <div className="flex items-center gap-1">
           {/* Heart / Like Button */}
           <div
             className="relative"
@@ -579,40 +578,64 @@ export default function PostCard({ post, onPostDeleted, onPostUpdated }) {
         </button>
       </div>
 
-      {/* 5. Instagram Caption & Content */}
-      <div className="px-4 py-1 text-xs sm:text-sm leading-relaxed text-gray-900">
+      {/* 5. Caption & Content */}
+      <div className="px-4 pt-1 pb-2 text-sm leading-relaxed text-slate-900">
         {isEditing ? (
           <div className="space-y-2 py-2">
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none resize-none h-20"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none resize-none h-20 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsEditing(false)}
-                className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
+                className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg transition cursor-pointer font-medium"
               >
                 Hủy
               </button>
               <button
                 onClick={handleSaveEdit}
                 disabled={isSavingEdit || !editContent.trim()}
-                className="px-4 py-1 text-xs bg-blue-600 text-white font-bold rounded-lg cursor-pointer"
+                className="px-4 py-1.5 text-xs bg-indigo-600 text-white font-semibold rounded-lg cursor-pointer hover:bg-indigo-700 transition disabled:opacity-50"
               >
-                {isSavingEdit ? 'Đang lưu...' : 'Lưu'}
+                {isSavingEdit ? 'Đang lưu…' : 'Lưu'}
               </button>
             </div>
           </div>
         ) : (
-          <p>
+          <p className="text-sm leading-relaxed">
             <Link
               to={`/users/${post.userId || post.authorId}`}
-              className="font-bold mr-2 hover:underline"
+              className="font-semibold text-slate-900 mr-1.5 hover:underline"
             >
               {post.authorName || post.username}
             </Link>
-            <span>{renderContentWithHashtags(post.content)}</span>
+            <span className="text-slate-800">{renderContentWithHashtags(displayCaption)}</span>
+            {isCaptionLong && !showFullCaption && (
+              <>
+                <span className="text-slate-400">… </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFullCaption(true)}
+                  className="text-slate-500 font-semibold text-xs hover:text-slate-700 transition cursor-pointer"
+                >
+                  Xem thêm
+                </button>
+              </>
+            )}
+            {isCaptionLong && showFullCaption && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  onClick={() => setShowFullCaption(false)}
+                  className="text-slate-500 font-semibold text-xs hover:text-slate-700 transition cursor-pointer"
+                >
+                  Ẩn bớt
+                </button>
+              </>
+            )}
           </p>
         )}
       </div>

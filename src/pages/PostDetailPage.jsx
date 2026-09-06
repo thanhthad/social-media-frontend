@@ -37,20 +37,21 @@ export default function PostDetailPage() {
       </button>
 
       {loading ? (
-        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex justify-center items-center py-20">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="bg-white rounded-2xl p-8 shadow-card border border-slate-200 flex justify-center items-center py-20">
+          <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin" />
         </div>
       ) : post ? (
         <PostCard
           post={post}
+          initialShowComments={true}
           onPostDeleted={() => navigate('/')}
           onPostUpdated={() => {
             postService.getPostById(postId).then((res) => setPost(res.data?.data));
           }}
         />
       ) : (
-        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
-          <p className="text-gray-700 font-bold text-base">Bài viết không tồn tại hoặc đã bị xóa.</p>
+        <div className="bg-white rounded-2xl p-12 text-center shadow-card border border-slate-200">
+          <p className="text-slate-800 font-bold text-base">Bài viết không tồn tại hoặc đã bị xóa.</p>
         </div>
       )}
     </div>

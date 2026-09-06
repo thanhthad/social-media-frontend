@@ -1,47 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import postService from '../services/postService';
 import hashtagService from '../services/hashtagService';
-import friendshipService from '../services/friendshipService';
 import CreatePostForm from '../components/post/CreatePostForm';
 import PostCard from '../components/post/PostCard';
 import StoryBar from '../components/story/StoryBar';
 import FriendSuggestions from '../components/friend/FriendSuggestions';
 import PendingFriendRequests from '../components/friend/PendingFriendRequests';
 import { PostSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 import { useUser } from '../contexts/UserContext';
 import {
   Sparkles,
   Compass,
-  TrendingUp,
-  Heart,
-  Clapperboard,
-  Bookmark,
-  MessageSquare,
   Users,
-  User,
-  ShieldCheck,
+  Search,
+  TrendingUp,
 } from 'lucide-react';
 
 const HomePage = () => {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [trendingTags, setTrendingTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'explore'
-  const [pendingCount, setPendingCount] = useState(0);
+  const loadMoreRef = useRef(null);
 
   useEffect(() => {
     fetchTrending();
-    friendshipService.getPendingFriendRequests(0, 1)
-      .then((res) => {
-        const data = res.data?.data;
-        const count = data?.totalElements ?? data?.total ?? (Array.isArray(data?.content) ? data.content.length : 0);
-        setPendingCount(count);
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -52,11 +41,9 @@ const HomePage = () => {
   const fetchTrending = async () => {
     try {
       const res = await hashtagService.getTrending(5);
-      if (res.data?.data) {
-        setTrendingTags(res.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch trending tags', error);
+      if (res.data?.data) setTrendingTags(res.data.data);
+    } catch (err) {
+      // silently ignore trending tags failure
     }
   };
 
@@ -74,14 +61,13 @@ const HomePage = () => {
       } else {
         setPosts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
-          const uniqueNew = content.filter((p) => !existingIds.has(p.id));
-          return [...prev, ...uniqueNew];
+          return [...prev, ...content.filter((p) => !existingIds.has(p.id))];
         });
       }
       setPage(pageNum);
       setHasMore(content.length === 10);
-    } catch (error) {
-      console.error('Failed to fetch posts:', error);
+    } catch (err) {
+      // silently handle
     } finally {
       setLoading(false);
     }
@@ -93,11 +79,8 @@ const HomePage = () => {
   };
 
   const handlePostCreated = () => {
-    if (activeTab === 'feed') {
-      fetchPosts(0, true);
-    } else {
-      setActiveTab('feed');
-    }
+    if (activeTab === 'feed') fetchPosts(0, true);
+    else setActiveTab('feed');
   };
 
   const handlePostDeleted = (postId) => {
@@ -105,40 +88,43 @@ const HomePage = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto flex justify-center gap-10 items-start pt-2 sm:pt-4">
-      {/* Center Feed Column (Instagram Standard Width) */}
-      <div className="w-full max-w-[630px] space-y-4 flex-1 min-w-0">
+    <div className="max-w-5xl mx-auto flex justify-center gap-8 items-start pt-2 sm:pt-4 pb-4">
+      {/* ── Center Feed Column ── */}
+      <div className="w-full max-w-[600px] flex-1 min-w-0 space-y-3">
         {/* Story Bar */}
         <StoryBar />
 
-        {/* Tab Selection */}
-        <div className="flex bg-white rounded-2xl border border-gray-200/80 p-1 mb-3">
+        {/* Feed Tabs — minimal pill style */}
+        <div className="flex bg-white rounded-2xl border border-slate-200 p-1 shadow-xs">
           <button
             onClick={() => setActiveTab('feed')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'feed'
-                ? 'bg-black text-white'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Sparkles size={14} />
-            <span>Dành cho bạn</span>
+            <Sparkles size={13} />
+            Dành cho bạn
           </button>
           <button
             onClick={() => setActiveTab('explore')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'explore'
-                ? 'bg-black text-white'
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Compass size={14} />
-            <span>Đang theo dõi & Khám phá</span>
+            <Compass size={13} />
+            Khám phá
           </button>
         </div>
 
-        {/* Feed Posts */}
-        <div className="space-y-4">
+        {/* Create Post form (only for feed tab) */}
+        {activeTab === 'feed' && <CreatePostForm onPostCreated={handlePostCreated} />}
+
+        {/* Posts */}
+        <div className="space-y-3">
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -151,89 +137,113 @@ const HomePage = () => {
 
         {/* Loading Skeletons */}
         {loading && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <PostSkeleton />
             <PostSkeleton />
           </div>
         )}
 
+        {/* Load More */}
         {!loading && hasMore && posts.length > 0 && (
           <button
             onClick={loadMore}
-            className="w-full py-3 bg-white border border-gray-200 rounded-2xl text-blue-600 font-bold hover:bg-gray-50 text-xs shadow-xs transition active:scale-[0.99] cursor-pointer"
+            className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-indigo-600 font-semibold hover:bg-slate-50 text-xs shadow-xs transition active:scale-[0.99] cursor-pointer"
           >
             Tải thêm bài viết
           </button>
         )}
 
+        {/* End of feed */}
         {!loading && !hasMore && posts.length > 0 && (
-          <div className="text-center py-8">
-            <p className="text-xs text-gray-400 font-medium">
-              ✨ Bạn đã xem hết tất cả bài viết mới nhất!
-            </p>
-          </div>
+          <p className="text-center py-6 text-xs text-slate-400 font-medium">
+            ✦ Bạn đã xem hết bài viết mới nhất
+          </p>
         )}
 
+        {/* Empty State */}
         {!loading && posts.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-6 space-y-2">
-            <p className="text-gray-800 font-bold text-sm">Chưa có bài viết nào trong bảng tin.</p>
-            <p className="text-gray-400 text-xs">Hãy theo dõi thêm người dùng khác để xem bài viết của họ!</p>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-card">
+            <EmptyState
+              icon={<Users size={28} />}
+              title={activeTab === 'feed' ? 'Bảng tin đang trống' : 'Chưa có bài viết nào'}
+              description={
+                activeTab === 'feed'
+                  ? 'Hãy kết bạn hoặc theo dõi thêm người dùng để xem bài viết của họ.'
+                  : 'Chưa có bài viết để khám phá. Hãy quay lại sau.'
+              }
+              action={
+                activeTab === 'feed'
+                  ? { label: 'Tìm bạn bè', onClick: () => navigate('/friends') }
+                  : undefined
+              }
+            />
           </div>
         )}
       </div>
 
-      {/* Right Sidebar Column (Instagram Desktop Style) */}
-      <div className="hidden lg:block w-[320px] shrink-0 sticky top-8 space-y-5">
-        {/* Current User Row */}
-        <div className="flex items-center justify-between py-1">
-          <Link to="/profile" className="flex items-center gap-3 min-w-0 flex-1 group">
-            <div className="relative">
-              {user?.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-12 h-12 rounded-full object-cover border border-gray-200"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                  {user?.username?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
+      {/* ── Right Sidebar (Desktop only) ── */}
+      <div className="hidden lg:block w-[300px] shrink-0 sticky top-5 space-y-4">
+        {/* Current User Card */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card">
+          <Link to="/profile" className="flex items-center gap-3 group">
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt=""
+                className="w-11 h-11 rounded-full object-cover border-2 border-slate-200 group-hover:border-indigo-300 transition-colors flex-shrink-0"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-gray-900 text-xs truncate group-hover:underline">
-                {user?.username}
+              <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
+                {user?.fullName || user?.username}
               </p>
-              <p className="text-xs text-gray-400 truncate">{user?.fullName || user?.email}</p>
+              <p className="text-xs text-slate-400 truncate">@{user?.username}</p>
             </div>
-          </Link>
-          <Link
-            to="/profile"
-            className="text-xs font-bold text-blue-600 hover:text-blue-800 transition"
-          >
-            Chuyển
           </Link>
         </div>
 
-        {/* Friend Requests Widget */}
+        {/* Pending Friend Requests */}
         <PendingFriendRequests isWidget={true} limit={3} />
 
-        {/* Friend Suggestions (Suggested For You) */}
+        {/* Friend Suggestions */}
         <FriendSuggestions />
 
-        {/* Instagram Minimalist Footer Links */}
-        <div className="pt-2 text-[11px] text-gray-400 space-y-3 leading-relaxed">
-          <div className="flex flex-wrap gap-x-2 gap-y-1">
-            <span className="hover:underline cursor-pointer">Giới thiệu</span>•
-            <span className="hover:underline cursor-pointer">Trợ giúp</span>•
-            <span className="hover:underline cursor-pointer">Báo chí</span>•
-            <span className="hover:underline cursor-pointer">API</span>•
-            <span className="hover:underline cursor-pointer">Việc làm</span>•
-            <span className="hover:underline cursor-pointer">Quyền riêng tư</span>•
-            <span className="hover:underline cursor-pointer">Điều khoản</span>
+        {/* Trending Hashtags */}
+        {trendingTags.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card space-y-3">
+            <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
+              <TrendingUp size={14} className="text-indigo-500" />
+              Xu hướng
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {trendingTags.map((tag) => (
+                <Link
+                  key={tag.name || tag}
+                  to={`/search?q=${encodeURIComponent(tag.name || tag)}&type=tag`}
+                  className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-full hover:bg-indigo-100 transition-colors"
+                >
+                  #{tag.name || tag}
+                </Link>
+              ))}
+            </div>
           </div>
-          <p className="text-gray-300 uppercase tracking-wider font-semibold">
-            © {new Date().getFullYear()} SOCIAL MEDIA FROM PLATFORM
+        )}
+
+        {/* Footer Links */}
+        <div className="text-[11px] text-slate-400 leading-loose px-1">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
+            {['Giới thiệu', 'Trợ giúp', 'Quyền riêng tư', 'Điều khoản'].map((item) => (
+              <span key={item} className="hover:text-slate-600 cursor-pointer transition-colors">
+                {item}
+              </span>
+            ))}
+          </div>
+          <p className="mt-1 text-slate-300 uppercase tracking-wide font-medium text-[10px]">
+            © {new Date().getFullYear()} VibeSocial
           </p>
         </div>
       </div>

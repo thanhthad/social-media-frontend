@@ -39,6 +39,7 @@ import {
   Eye,
   Plus,
   Clapperboard,
+  Heart,
 } from 'lucide-react';
 
 export default function ProfilePage() {
