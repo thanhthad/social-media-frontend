@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import friendshipService from '../../services/friendshipService';
 import toast from 'react-hot-toast';
-import { UserPlus, UserCheck, UserX, Sparkles } from 'lucide-react';
+import { UserPlus, UserX, Sparkles } from 'lucide-react';
 
 export default function FriendSuggestions() {
   const [suggestions, setSuggestions] = useState([]);
@@ -50,56 +50,59 @@ export default function FriendSuggestions() {
   if (!loading && suggestions.length === 0) return null;
 
   return (
-    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 space-y-4">
+    <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2 text-base">
-          <Sparkles className="w-4 h-4 text-blue-600" />
+        <h3 className="font-semibold text-slate-800 flex items-center gap-1.5 text-sm">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
           Gợi ý kết bạn
         </h3>
         <Link
           to="/friends"
-          className="text-xs font-semibold text-blue-600 hover:underline"
+          className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
         >
           Xem tất cả
         </Link>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {loading
           ? [1, 2, 3].map((n) => (
               <div key={n} className="flex items-center gap-3 animate-pulse">
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 bg-gray-200 rounded w-2/3" />
-                  <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+                <div className="w-9 h-9 rounded-full bg-slate-200 flex-shrink-0" />
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <div className="h-3 bg-slate-200 rounded w-2/3" />
+                  <div className="h-2.5 bg-slate-100 rounded w-1/3" />
                 </div>
               </div>
             ))
-          : suggestions.map((user) => {
-              const uId = user.userId || user.id;
+          : suggestions.map((u) => {
+              const uId = u.userId || u.id;
               const isSent = sentRequests[uId];
               return (
-                <div
-                  key={uId}
-                  className="flex items-center justify-between gap-3 group"
-                >
+                <div key={uId} className="flex items-center justify-between gap-2">
                   <Link
                     to={`/users/${uId}`}
-                    className="flex items-center gap-3 min-w-0 flex-1"
+                    className="flex items-center gap-2.5 min-w-0 flex-1 group"
                   >
-                    <img
-                      src={user.avatarUrl || 'https://via.placeholder.com/40'}
-                      alt=""
-                      className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm group-hover:scale-105 transition-transform"
-                    />
+                    {u.avatarUrl ? (
+                      <img
+                        src={u.avatarUrl}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 flex-shrink-0 group-hover:scale-105 transition-transform"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {(u.fullName || u.username || '?')[0].toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-800 text-sm truncate group-hover:text-blue-600 transition-colors">
-                        {user.fullName || user.username}
+                      <p className="font-semibold text-slate-800 text-xs truncate group-hover:text-indigo-600 transition-colors">
+                        {u.fullName || u.username}
                       </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {(user.mutualCount || user.mutualFriendsCount)
-                          ? `${user.mutualCount || user.mutualFriendsCount} bạn chung`
-                          : `@${user.username}`}
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {(u.mutualCount || u.mutualFriendsCount)
+                          ? `${u.mutualCount || u.mutualFriendsCount} bạn chung`
+                          : `@${u.username}`}
                       </p>
                     </div>
                   </Link>
@@ -107,14 +110,14 @@ export default function FriendSuggestions() {
                   <button
                     type="button"
                     onClick={() => (isSent ? handleCancelRequest(uId) : handleSendRequest(uId))}
-                    className={`p-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 active:scale-95 ${
+                    className={`flex-shrink-0 p-1.5 rounded-xl transition active:scale-90 ${
                       isSent
-                        ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200 shadow-xs'
-                        : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white shadow-sm'
+                        ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                     }`}
-                    title={isSent ? 'Nhấn để hủy lời mời đã gửi' : 'Kết bạn'}
+                    title={isSent ? 'Hủy lời mời' : 'Kết bạn'}
                   >
-                    {isSent ? <UserX size={15} /> : <UserPlus size={15} />}
+                    {isSent ? <UserX size={14} /> : <UserPlus size={14} />}
                   </button>
                 </div>
               );

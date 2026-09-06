@@ -7,7 +7,6 @@ import NotificationDropdown from '../notification/NotificationDropdown';
 import {
   Home,
   Search,
-  Compass,
   Clapperboard,
   MessageCircle,
   Heart,
@@ -17,229 +16,211 @@ import {
   Shield,
   LogOut,
   Menu,
-  User,
   Sparkles,
+  Users,
 } from 'lucide-react';
 
+// All nav items use indigo-600 as active, except Dating (rose) and Reels (fuchsia)
+const NAV_ITEMS = [
+  { to: '/',        icon: Home,          label: 'Trang chủ', exact: true },
+  { to: '/search',  icon: Search,        label: 'Tìm kiếm' },
+  { to: '/reels',   icon: Clapperboard,  label: 'Reels',     special: 'reels' },
+  { to: '/messages',icon: MessageCircle, label: 'Tin nhắn' },
+  { to: '/dating',  icon: Heart,         label: 'Hẹn hò',    special: 'dating' },
+  { to: '/friends', icon: Users,         label: 'Bạn bè' },
+];
+
+function NavItem({ item, isActiveRoute }) {
+  const Icon = item.icon;
+  const active = isActiveRoute(item.to, item.exact);
+
+  let activeTextColor = 'text-indigo-600';
+  let activeBgColor   = 'bg-indigo-50';
+  let inactiveHover   = 'hover:bg-slate-100 hover:text-slate-900';
+
+  if (item.special === 'dating') {
+    activeTextColor = 'text-rose-600';
+    activeBgColor   = 'bg-rose-50';
+    inactiveHover   = 'hover:bg-rose-50 hover:text-rose-600';
+  } else if (item.special === 'reels') {
+    activeTextColor = 'text-fuchsia-600';
+    activeBgColor   = 'bg-fuchsia-50';
+    inactiveHover   = 'hover:bg-fuchsia-50 hover:text-fuchsia-600';
+  }
+
+  const iconFill = item.special === 'dating' && active ? 'fill-rose-500' : '';
+
+  return (
+    <Link
+      to={item.to}
+      className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 group font-medium ${
+        active
+          ? `${activeTextColor} ${activeBgColor} font-semibold`
+          : `text-slate-600 ${inactiveHover}`
+      }`}
+      title={item.label}
+    >
+      <Icon
+        size={22}
+        className={`flex-shrink-0 ${active ? `${activeTextColor} ${iconFill} stroke-2` : 'stroke-[1.75] group-hover:scale-105 transition-transform'}`}
+      />
+      <span className="hidden xl:block text-sm leading-none">{item.label}</span>
+    </Link>
+  );
+}
+
 export default function InstagramSidebar({ onOpenCreateChoice }) {
-  const { isAuthenticated, logout } = useAuth();
-  const { user, isAdmin, logout: clearUserContext } = useUser();
-  const location = useLocation();
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const moreMenuRef = useRef(null);
+  const { logout }                           = useAuth();
+  const { user, isAdmin, logout: clearUser } = useUser();
+  const location  = useLocation();
+  const [showMore, setShowMore] = useState(false);
+  const moreRef   = useRef(null);
 
   const handleLogout = () => {
-    setShowMoreMenu(false);
+    setShowMore(false);
     logout();
-    if (clearUserContext) clearUserContext();
+    if (clearUser) clearUser();
   };
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
-        setShowMoreMenu(false);
+    const handler = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) {
+        setShowMore(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/';
+  const isActiveRoute = (path, exact = false) => {
+    if (exact) return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
-  if (!isAuthenticated) return null;
-
   return (
-    <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-18 xl:w-60 bg-white border-r border-gray-200 z-40 px-3 py-6 justify-between transition-all select-none">
-      {/* Top Brand Logo */}
-      <div className="space-y-6">
+    <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[68px] xl:w-60 bg-white border-r border-slate-200 z-40 px-2.5 xl:px-3.5 py-5 justify-between select-none">
+      {/* Brand Logo */}
+      <div className="space-y-1">
         <Link
           to="/"
-          className="flex items-center gap-3 px-3 py-2 text-gray-900 group"
+          className="flex items-center gap-3 px-2.5 py-2 rounded-xl mb-3 group"
         >
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 flex items-center justify-center text-white font-black text-lg shadow-md group-hover:scale-105 transition">
-            S
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 flex-shrink-0 group-hover:shadow-indigo-500/40 transition-shadow">
+            <Sparkles size={18} className="text-white" />
           </div>
-          <span className="hidden xl:block font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 font-sans">
-            SocialApp
+          <span className="hidden xl:block font-black text-xl tracking-tight gradient-text-brand">
+            VibeSocial
           </span>
         </Link>
 
-        {/* Navigation Items */}
-        <nav className="space-y-1.5">
-          {/* Home */}
-          <Link
-            to="/"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/')
-                ? 'font-bold text-gray-900 bg-gray-100/70'
-                : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 font-normal'
-            }`}
-          >
-            <Home size={24} className={isActive('/') ? 'stroke-[2.5]' : 'stroke-[1.8] group-hover:scale-105 transition'} />
-            <span className="hidden xl:block text-sm">Trang chủ</span>
-          </Link>
-
-          {/* Search */}
-          <Link
-            to="/search"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/search')
-                ? 'font-bold text-gray-900 bg-gray-100/70'
-                : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 font-normal'
-            }`}
-          >
-            <Search size={24} className={isActive('/search') ? 'stroke-[2.5]' : 'stroke-[1.8] group-hover:scale-105 transition'} />
-            <span className="hidden xl:block text-sm">Tìm kiếm</span>
-          </Link>
-
-          {/* Reels */}
-          <Link
-            to="/reels"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/reels')
-                ? 'font-bold text-gray-900 bg-gray-100/70'
-                : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 font-normal'
-            }`}
-          >
-            <Clapperboard size={24} className={isActive('/reels') ? 'stroke-[2.5] text-pink-600' : 'stroke-[1.8] group-hover:scale-105 transition'} />
-            <span className="hidden xl:block text-sm">Reels</span>
-          </Link>
-
-          {/* Messages */}
-          <Link
-            to="/messages"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/messages')
-                ? 'font-bold text-gray-900 bg-gray-100/70'
-                : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 font-normal'
-            }`}
-          >
-            <MessageCircle size={24} className={isActive('/messages') ? 'stroke-[2.5] text-sky-600' : 'stroke-[1.8] group-hover:scale-105 transition'} />
-            <span className="hidden xl:block text-sm">Tin nhắn</span>
-          </Link>
-
-          {/* Dating */}
-          <Link
-            to="/dating"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/dating')
-                ? 'font-bold text-rose-600 bg-rose-50/70'
-                : 'text-gray-700 hover:bg-rose-50/50 hover:text-rose-600 font-normal'
-            }`}
-          >
-            <Heart size={24} className={isActive('/dating') ? 'stroke-[2.5] fill-rose-500 text-rose-500' : 'stroke-[1.8] group-hover:scale-105 transition'} />
-            <span className="hidden xl:block text-sm">Hẹn hò</span>
-          </Link>
+        {/* Nav Items */}
+        <nav className="space-y-0.5">
+          {NAV_ITEMS.map((item) => (
+            <NavItem key={item.to} item={item} isActiveRoute={isActiveRoute} />
+          ))}
 
           {/* Notifications */}
-          <div className="flex items-center gap-4 px-3 py-1.5 rounded-2xl hover:bg-gray-100/80 transition cursor-pointer text-gray-700">
-            <NotificationDropdown />
-            <span className="hidden xl:block text-sm font-normal">Thông báo</span>
-          </div>
+          <NotificationDropdown isSidebar />
 
-          {/* Create (+) */}
+          {/* Create */}
           <button
             type="button"
             onClick={onOpenCreateChoice}
-            className="w-full flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-gray-100/80 text-gray-700 hover:text-gray-900 transition group cursor-pointer"
+            className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 group font-medium cursor-pointer"
           >
-            <PlusSquare size={24} className="stroke-[1.8] group-hover:scale-105 transition" />
-            <span className="hidden xl:block text-sm font-normal">Tạo</span>
+            <PlusSquare size={22} className="flex-shrink-0 stroke-[1.75] group-hover:scale-105 transition-transform" />
+            <span className="hidden xl:block text-sm leading-none">Tạo mới</span>
           </button>
 
           {/* Profile */}
           <Link
             to="/profile"
-            className={`flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group ${
-              isActive('/profile')
-                ? 'font-bold text-gray-900 bg-gray-100/70'
-                : 'text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 font-normal'
+            className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 font-medium ${
+              isActiveRoute('/profile')
+                ? 'text-indigo-600 bg-indigo-50 font-semibold'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               {user?.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
-                  alt=""
+                  alt={user.username || ''}
                   className={`w-6 h-6 rounded-full object-cover ${
-                    isActive('/profile') ? 'ring-2 ring-black' : ''
+                    isActiveRoute('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
                   }`}
                 />
               ) : (
-                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
-                  {user?.username?.charAt(0).toUpperCase() || 'U'}
+                <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[10px] font-bold flex items-center justify-center ${
+                  isActiveRoute('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
+                }`}>
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
               )}
             </div>
-            <span className="hidden xl:block text-sm">Trang cá nhân</span>
+            <span className="hidden xl:block text-sm leading-none">Trang cá nhân</span>
           </Link>
         </nav>
       </div>
 
-      {/* Bottom "Xem thêm" Menu */}
-      <div className="relative" ref={moreMenuRef}>
+      {/* More Menu */}
+      <div className="relative" ref={moreRef}>
         <button
           type="button"
-          onClick={() => setShowMoreMenu(!showMoreMenu)}
-          className="w-full flex items-center gap-4 px-3 py-3 rounded-2xl hover:bg-gray-100/80 text-gray-700 hover:text-gray-900 transition group cursor-pointer"
+          onClick={() => setShowMore((v) => !v)}
+          className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
         >
-          <Menu size={24} className="stroke-[1.8] group-hover:scale-105 transition" />
-          <span className="hidden xl:block text-sm font-normal">Xem thêm</span>
+          <Menu size={22} className="flex-shrink-0 stroke-[1.75]" />
+          <span className="hidden xl:block text-sm leading-none">Xem thêm</span>
         </button>
 
-        {/* Popover Dropdown */}
         <AnimatePresence>
-          {showMoreMenu && (
+          {showMore && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="absolute bottom-14 left-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 z-50 divide-y divide-gray-50"
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="absolute bottom-14 left-0 w-60 bg-white rounded-2xl shadow-dropdown border border-slate-200 p-1.5 z-50"
             >
-              <div className="py-1 space-y-0.5 text-xs font-semibold text-gray-700">
+              <Link
+                to="/saved-posts"
+                onClick={() => setShowMore(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
+              >
+                <Bookmark size={16} className="text-slate-500" />
+                Đã lưu
+              </Link>
+              <Link
+                to="/edit-profile"
+                onClick={() => setShowMore(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
+              >
+                <Settings size={16} className="text-slate-500" />
+                Cài đặt
+              </Link>
+
+              {isAdmin && (
                 <Link
-                  to="/saved-posts"
-                  onClick={() => setShowMoreMenu(false)}
-                  className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 rounded-2xl transition"
+                  to="/admin"
+                  onClick={() => setShowMore(false)}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-indigo-50 transition text-sm text-indigo-700 font-medium"
                 >
-                  <Bookmark size={17} className="text-gray-500" />
-                  <span>Đã lưu</span>
+                  <Shield size={16} className="text-indigo-500" />
+                  Quản trị hệ thống
                 </Link>
+              )}
 
-                <Link
-                  to="/edit-profile"
-                  onClick={() => setShowMoreMenu(false)}
-                  className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 rounded-2xl transition"
-                >
-                  <Settings size={17} className="text-gray-500" />
-                  <span>Cài đặt</span>
-                </Link>
+              <hr className="my-1 border-slate-100" />
 
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setShowMoreMenu(false)}
-                    className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-indigo-50 text-indigo-700 rounded-2xl transition"
-                  >
-                    <Shield size={17} className="text-indigo-600" />
-                    <span>Quản trị hệ thống</span>
-                  </Link>
-                )}
-              </div>
-
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-2xl transition cursor-pointer"
-                >
-                  <LogOut size={17} />
-                  <span>Đăng xuất</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-red-50 transition text-sm text-red-600 font-medium cursor-pointer"
+              >
+                <LogOut size={16} />
+                Đăng xuất
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

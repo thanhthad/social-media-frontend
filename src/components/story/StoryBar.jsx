@@ -59,8 +59,8 @@ export default function StoryBar() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 mb-5 border border-gray-200/80 overflow-hidden shadow-xs">
-        <div className="flex items-center gap-4 overflow-x-auto pb-1 no-scrollbar">
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl sm:rounded-3xl p-3 sm:p-4 mb-4 border border-slate-200/80 overflow-hidden shadow-xs">
+        <div className="flex items-center gap-3.5 sm:gap-4 overflow-x-auto pb-1 no-scrollbar">
           {/* Your Story (Create / View) */}
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none">
             <div
@@ -77,8 +77,8 @@ export default function StoryBar() {
               <div
                 className={`p-[2px] rounded-full ${
                   myStories.length > 0
-                    ? 'bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600'
-                    : 'bg-gray-200'
+                    ? 'bg-gradient-to-tr from-indigo-500 via-violet-500 to-pink-500 shadow-md shadow-indigo-500/20'
+                    : 'bg-slate-200'
                 }`}
               >
                 <div className="p-[2px] bg-white rounded-full">
@@ -90,20 +90,20 @@ export default function StoryBar() {
                 </div>
               </div>
 
-              {/* Blue Plus Button */}
+              {/* Indigo Plus Button */}
               {myStories.length === 0 && (
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowCreateModal(true);
                   }}
-                  className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-xs"
+                  className="absolute bottom-0 right-0 w-5 h-5 bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-xs"
                 >
                   <Plus size={14} strokeWidth={3} />
                 </div>
               )}
             </div>
-            <span className="text-[11px] font-semibold text-gray-700 truncate max-w-[72px] text-center">
+            <span className="text-[11px] font-semibold text-slate-700 truncate max-w-[72px] text-center">
               Tin của bạn
             </span>
           </div>
@@ -112,8 +112,8 @@ export default function StoryBar() {
           {loading &&
             [1, 2, 3, 4, 5].map((n) => (
               <div key={n} className="flex flex-col items-center gap-1.5 flex-shrink-0 animate-pulse">
-                <div className="w-16 h-16 rounded-full bg-gray-200" />
-                <div className="w-12 h-2.5 bg-gray-200 rounded-full" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-200" />
+                <div className="w-12 h-2.5 bg-slate-200 rounded-full" />
               </div>
             ))}
 
@@ -129,7 +129,7 @@ export default function StoryBar() {
                     onClick={() => handleOpenViewer(actualIdx)}
                     className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none"
                   >
-                    <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 group-hover:scale-105 transition-transform duration-200">
+                    <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-pink-500 shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
                       <div className="p-[2px] bg-white rounded-full">
                         <img
                           src={story.avatarUrl || 'https://via.placeholder.com/150'}
@@ -138,7 +138,7 @@ export default function StoryBar() {
                         />
                       </div>
                     </div>
-                    <span className="text-[11px] font-medium text-gray-800 truncate max-w-[72px] text-center">
+                    <span className="text-[11px] font-medium text-slate-800 truncate max-w-[72px] text-center">
                       {story.username}
                     </span>
                   </div>
