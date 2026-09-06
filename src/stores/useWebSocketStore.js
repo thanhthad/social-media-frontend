@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import toast from 'react-hot-toast';
 
 const getWsUrl = () => {
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
@@ -20,6 +19,7 @@ const useWebSocketStore = create((set, get) => ({
   messageListeners: new Set(),
   reactionListeners: new Set(),
   conversationListeners: new Set(),
+  notificationListeners: new Set(),
 
   // Connect to STOMP WebSocket broker
   connect: (token) => {
@@ -44,10 +44,7 @@ const useWebSocketStore = create((set, get) => ({
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      debug: (msg) => {
-        // Uncomment if deep STOMP debug logs are needed:
-        // console.log('[STOMP]', msg);
-      },
+      debug: () => {},
       onConnect: (frame) => {
         console.log('[WebSocket] Connected successfully to STOMP broker.');
         set({ connected: true, stompClient: client });
@@ -61,10 +58,9 @@ const useWebSocketStore = create((set, get) => ({
               unreadNotifCount: state.unreadNotifCount + 1,
             }));
 
-            // Toast alert for user
-            toast(notif.content || 'Bạn có thông báo mới!', {
-              icon: '🔔',
-              duration: 4000,
+            // Dispatch to all registered notification listeners (e.g. NotificationBanner)
+            get().notificationListeners.forEach((listener) => {
+              try { listener(notif); } catch (e) { console.error('Notification listener error', e); }
             });
           } catch (e) {
             console.error('Failed to parse notification payload', e);
@@ -193,6 +189,17 @@ const useWebSocketStore = create((set, get) => ({
   setUnreadNotifCount: (count) => set({ unreadNotifCount: count }),
   decrementUnreadNotifCount: () =>
     set((state) => ({ unreadNotifCount: Math.max(0, state.unreadNotifCount - 1) })),
+
+  // Notification listeners registration (for real-time banner etc.)
+  addNotificationListener: (listener) => {
+    const listeners = get().notificationListeners;
+    listeners.add(listener);
+    set({ notificationListeners: new Set(listeners) });
+    return () => {
+      listeners.delete(listener);
+      set({ notificationListeners: new Set(listeners) });
+    };
+  },
 }));
 
 export default useWebSocketStore;

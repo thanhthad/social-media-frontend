@@ -23,6 +23,8 @@ import SavedPostsPage from './pages/SavedPostsPage';
 import PostDetailPage from './pages/PostDetailPage';
 import ReelsPage from './pages/ReelsPage';
 import AdminPage from './pages/AdminPage';
+import NotificationsPage from './pages/NotificationsPage';
+import NotificationBanner from './components/notification/NotificationBanner';
 import NotificationDropdown from './components/notification/NotificationDropdown';
 import InstagramSidebar from './components/layout/InstagramSidebar';
 import InstagramMobileHeader from './components/layout/InstagramMobileHeader';
@@ -74,8 +76,8 @@ const ProtectedRoute = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-screen bg-slate-50">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin" />
       </div>
     );
   }
@@ -91,8 +93,8 @@ const AdminRoute = ({ children }) => {
 
   if (isLoading || userLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-screen bg-slate-50">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin" />
       </div>
     );
   }
@@ -108,8 +110,8 @@ const GuestRoute = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-screen bg-slate-50">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin" />
       </div>
     );
   }
@@ -118,7 +120,7 @@ const GuestRoute = ({ children }) => {
   return children;
 };
 
-// Mobile Bottom Navigation Bar (Instagram Style)
+// Mobile Bottom Navigation Bar
 const MobileBottomNav = ({ onOpenCreateChoice }) => {
   const { isAuthenticated } = useAuth();
   const { user } = useUser();
@@ -130,62 +132,84 @@ const MobileBottomNav = ({ onOpenCreateChoice }) => {
     return location.pathname.startsWith(path);
   };
 
+  const navLink = (to, icon, label, special) => {
+    const active = isActive(to);
+    let color = active ? 'text-indigo-600' : 'text-slate-500';
+    if (special === 'dating')  color = active ? 'text-rose-600'    : 'text-slate-500 hover:text-rose-600';
+    if (special === 'reels')   color = active ? 'text-fuchsia-600' : 'text-slate-500 hover:text-fuchsia-600';
+
+    const IconEl = icon;
+    const isDating = special === 'dating';
+
+    return (
+      <Link
+        to={to}
+        className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 ${color}`}
+        aria-label={label}
+      >
+        <IconEl
+          size={22}
+          className={`${active ? 'stroke-[2.2]' : 'stroke-[1.75]'} ${isDating && active ? 'fill-rose-500 text-rose-500' : ''}`}
+        />
+        <span className={`text-[10px] font-medium leading-none ${active ? 'font-semibold' : ''}`}>
+          {label}
+        </span>
+      </Link>
+    );
+  };
+
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-6 py-2.5 flex justify-between items-center select-none shadow-md">
-      {/* Home */}
-      <Link
-        to="/"
-        className={`p-1.5 transition ${isActive('/') ? 'text-black' : 'text-gray-600'}`}
-      >
-        <Home size={24} className={isActive('/') ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-      </Link>
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 safe-area-pb">
+      <div className="flex items-center justify-around px-1 pt-1">
+        {navLink('/', Home, 'Trang chủ')}
+        {navLink('/reels', Clapperboard, 'Reels', 'reels')}
 
-      {/* Search / Explore */}
-      <Link
-        to="/search"
-        className={`p-1.5 transition ${isActive('/search') ? 'text-black' : 'text-gray-600'}`}
-      >
-        <Search size={24} className={isActive('/search') ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-      </Link>
-
-      {/* Create (+) */}
-      <button
-        type="button"
-        onClick={onOpenCreateChoice}
-        className="p-1 text-gray-800 hover:text-black transition cursor-pointer"
-      >
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-xs">
-          <PlusSquare size={18} />
-        </div>
-      </button>
-
-      {/* Reels */}
-      <Link
-        to="/reels"
-        className={`p-1.5 transition ${isActive('/reels') ? 'text-pink-600' : 'text-gray-600'}`}
-      >
-        <Clapperboard size={24} className={isActive('/reels') ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-      </Link>
-
-      {/* Profile */}
-      <Link to="/profile" className="p-1">
-        {user?.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt=""
-            className={`w-6 h-6 rounded-full object-cover ${
-              isActive('/profile') ? 'ring-2 ring-black' : ''
-            }`}
-          />
-        ) : (
-          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
+        {/* Center Create Button */}
+        <button
+          type="button"
+          onClick={onOpenCreateChoice}
+          className="flex flex-col items-center gap-0.5 px-2 py-1.5 active:scale-90 transition-transform"
+          aria-label="Tạo mới"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+            <PlusSquare size={19} className="stroke-[2.2]" />
           </div>
-        )}
-      </Link>
-    </div>
+        </button>
+
+        {navLink('/dating', Heart, 'Hẹn hò', 'dating')}
+
+        {/* Profile */}
+        <Link
+          to="/profile"
+          className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 ${
+            isActive('/profile') ? 'text-indigo-600' : 'text-slate-500'
+          }`}
+          aria-label="Cá nhân"
+        >
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className={`w-6 h-6 rounded-full object-cover ${
+                isActive('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
+              }`}
+            />
+          ) : (
+            <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[10px] font-bold flex items-center justify-center ${
+              isActive('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
+            }`}>
+              {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+          )}
+          <span className={`text-[10px] font-medium leading-none ${isActive('/profile') ? 'font-semibold' : ''}`}>
+            Cá nhân
+          </span>
+        </Link>
+      </div>
+    </nav>
   );
 };
+
 
 // Page Transition
 const PageTransition = ({ children }) => {
@@ -335,6 +359,16 @@ const AnimatedRoutes = () => {
           }
         />
         <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <NotificationsPage />
+              </PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/messages"
           element={
             <ProtectedRoute>
@@ -447,6 +481,8 @@ function AppContent() {
           },
         }}
       />
+
+      <NotificationBanner />
 
       {isAuthenticated && (
         <>

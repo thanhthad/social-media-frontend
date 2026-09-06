@@ -1,8 +1,14 @@
 import axiosClient from '../api/axiosClient';
 
 const notificationService = {
-  getNotifications: (page = 0, size = 10) =>
-    axiosClient.get('/notifications', { params: { page, size } }),
+  /**
+   * Get paginated notifications.
+   * @param {number} page
+   * @param {number} size
+   * @param {boolean} unreadOnly - filter to only unread notifications
+   */
+  getNotifications: (page = 0, size = 20, unreadOnly = false) =>
+    axiosClient.get('/notifications', { params: { page, size, unreadOnly } }),
 
   getUnreadCount: () => axiosClient.get('/notifications/unread-count'),
 

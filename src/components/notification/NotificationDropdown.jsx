@@ -1,117 +1,251 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Bell, CheckCheck, X, ChevronRight } from 'lucide-react';
 import notificationService from '../../services/notificationService';
+import friendshipService from '../../services/friendshipService';
 import useWebSocketStore from '../../stores/useWebSocketStore';
-import { Bell, CheckCheck, Sparkles } from 'lucide-react';
+import { timeAgo } from '../../lib/utils';
+import {
+  getNotifIcon,
+  getNotifTextColor,
+  getNotifUrl,
+} from './notificationHelpers';
+import toast from 'react-hot-toast';
 
-const getNotificationText = (notif) => {
-  const name = notif.senderUsername || 'Một người dùng';
-  switch (notif.type) {
-    case 'POST_REACTION':
-      return `${name} đã bày tỏ cảm xúc về bài viết của bạn.`;
-    case 'POST_COMMENT':
-    case 'COMMENT':
-      return `${name} đã bình luận về bài viết của bạn.`;
-    case 'COMMENT_REPLY':
-      return `${name} đã trả lời bình luận của bạn.`;
-    case 'COMMENT_REACTION':
-      return `${name} đã thích bình luận của bạn.`;
-    case 'FRIEND_REQUEST':
-      return `${name} đã gửi lời mời kết bạn cho bạn.`;
-    case 'FRIEND_ACCEPTED':
-      return `${name} đã chấp nhận lời mời kết bạn.`;
-    case 'FOLLOW':
-      return `${name} đã bắt đầu theo dõi bạn.`;
-    default:
-      return notif.content || `${name} đã tương tác với bạn.`;
-  }
-};
+// ── Notification Item Component ──────────────────────────────────────────────
 
-export default function NotificationDropdown() {
-  const [isOpen, setIsOpen] = useState(false);
+function NotifItem({ notif, onRead, onDelete }) {
+  const navigate   = useNavigate();
+  const notifId    = notif.notificationId || notif.id;
+  const isRead     = notif.isRead || notif.read;
+  const name       = notif.senderFullName || notif.senderUsername || 'Ai đó';
+  const icon       = getNotifIcon(notif.type);
+  const colorClass = getNotifTextColor(notif.type);
+  const isFriendReq = notif.type === 'FRIEND_REQUEST';
+
+  const [friendAction, setFriendAction] = useState(null); // null | 'accepted' | 'declined'
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleClick = async () => {
+    await onRead(notif);
+    navigate(getNotifUrl(notif));
+  };
+
+  const handleAccept = async (e) => {
+    e.stopPropagation();
+    if (actionLoading || friendAction) return;
+    setActionLoading(true);
+    try {
+      await friendshipService.acceptFriendRequest(notif.senderId);
+      setFriendAction('accepted');
+      toast.success(`Đã chấp nhận lời mời từ ${name}`);
+      await onRead(notif);
+    } catch {
+      toast.error('Không thể chấp nhận lời mời');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDecline = async (e) => {
+    e.stopPropagation();
+    if (actionLoading || friendAction) return;
+    setActionLoading(true);
+    try {
+      await friendshipService.rejectFriendRequest(notif.senderId);
+      setFriendAction('declined');
+      toast('Đã từ chối lời mời kết bạn', { icon: '👋' });
+      await onRead(notif);
+    } catch {
+      toast.error('Không thể từ chối lời mời');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={!isFriendReq || friendAction ? handleClick : undefined}
+      className={`flex items-start gap-3 px-4 py-3 group relative transition-colors ${
+        !isRead ? 'bg-indigo-50/60 hover:bg-indigo-50' : 'hover:bg-slate-50'
+      } ${(!isFriendReq || friendAction) ? 'cursor-pointer' : ''}`}
+    >
+      {/* Avatar + type icon badge */}
+      <div className="relative flex-shrink-0">
+        {notif.senderAvatar ? (
+          <img
+            src={notif.senderAvatar}
+            alt={name}
+            className="w-11 h-11 rounded-full object-cover border border-slate-200"
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold select-none">
+            {name[0]?.toUpperCase() || '?'}
+          </div>
+        )}
+        {/* Type icon badge */}
+        <span
+          className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] border-2 border-white ${colorClass}`}
+        >
+          {icon}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 pr-6">
+        <p className={`text-xs leading-snug ${isRead ? 'text-slate-700' : 'text-slate-900 font-medium'}`}>
+          {notif.message || `${name} đã tương tác với bạn.`}
+        </p>
+        <p className={`text-[11px] mt-0.5 font-medium ${isRead ? 'text-slate-400' : 'text-indigo-500'}`}>
+          {timeAgo(notif.createdAt)}
+        </p>
+
+        {/* Inline Friend Request Actions */}
+        {isFriendReq && !friendAction && (
+          <div className="flex gap-2 mt-2.5">
+            <button
+              type="button"
+              onClick={handleAccept}
+              disabled={actionLoading}
+              className="px-3.5 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition active:scale-95 disabled:opacity-60 cursor-pointer"
+            >
+              {actionLoading ? '…' : 'Chấp nhận'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDecline}
+              disabled={actionLoading}
+              className="px-3.5 py-1.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-200 transition active:scale-95 disabled:opacity-60 cursor-pointer"
+            >
+              Từ chối
+            </button>
+          </div>
+        )}
+
+        {/* Action feedback */}
+        {isFriendReq && friendAction === 'accepted' && (
+          <p className="mt-2 text-[11px] text-emerald-600 font-semibold">✅ Đã chấp nhận</p>
+        )}
+        {isFriendReq && friendAction === 'declined' && (
+          <p className="mt-2 text-[11px] text-slate-400 font-medium">Đã từ chối</p>
+        )}
+      </div>
+
+      {/* Unread dot */}
+      {!isRead && (
+        <span className="absolute top-4 right-9 w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
+      )}
+
+      {/* Delete button */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onDelete(notifId); }}
+        className="absolute top-3 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+        aria-label="Xoá"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
+
+// ── Main Dropdown ─────────────────────────────────────────────────────────────
+
+export default function NotificationDropdown({ isSidebar = false }) {
+  const [isOpen, setIsOpen]           = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const dropdownRef = useRef(null);
-  const navigate = useNavigate();
+  const [loading, setLoading]         = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage]               = useState(0);
+  const [hasMore, setHasMore]         = useState(true);
+  const [activeTab, setActiveTab]     = useState('all'); // 'all' | 'unread'
+  const dropdownRef  = useRef(null);
+  const listRef      = useRef(null);
+  const navigate     = useNavigate();
 
-  const wsNotifications = useWebSocketStore((state) => state.notifications);
-  const unreadCount = useWebSocketStore((state) => state.unreadNotifCount);
-  const setUnreadCount = useWebSocketStore((state) => state.setUnreadNotifCount);
-  const decrementUnreadCount = useWebSocketStore((state) => state.decrementUnreadNotifCount);
+  const wsNotifications = useWebSocketStore((s) => s.notifications);
+  const unreadCount     = useWebSocketStore((s) => s.unreadNotifCount);
+  const setUnreadCount  = useWebSocketStore((s) => s.setUnreadNotifCount);
+  const decrementUnread = useWebSocketStore((s) => s.decrementUnreadNotifCount);
 
   // Fetch unread count on mount
   useEffect(() => {
     notificationService
       .getUnreadCount()
-      .then((res) => {
-        const count = res.data?.data ?? res.data ?? 0;
-        setUnreadCount(Number(count));
-      })
-      .catch((err) => console.error('Failed to fetch unread count', err));
+      .then((res) => { const c = res.data?.data ?? res.data ?? 0; setUnreadCount(Number(c)); })
+      .catch(() => {});
   }, [setUnreadCount]);
 
-  // Sync WebSocket notifications
+  // Merge new WS notifications
   useEffect(() => {
-    if (wsNotifications && wsNotifications.length > 0) {
-      setNotifications((prev) => {
-        const newOnes = wsNotifications.filter(
-          (wn) => !prev.some((p) => (p.notificationId || p.id) === (wn.notificationId || wn.id))
-        );
-        return [...newOnes, ...prev];
-      });
-    }
+    if (!wsNotifications?.length) return;
+    setNotifications((prev) => {
+      const ids = new Set(prev.map((n) => n.notificationId || n.id));
+      const fresh = wsNotifications.filter((n) => !ids.has(n.notificationId || n.id));
+      return [...fresh, ...prev];
+    });
   }, [wsNotifications]);
 
-  // Fetch notifications list when opening dropdown
+  // Fetch when opening
+  const fetchNotifications = useCallback(async (pg = 0, tab = activeTab, reset = false) => {
+    const unreadOnly = tab === 'unread';
+    if (pg === 0) setLoading(true);
+    else setLoadingMore(true);
+    try {
+      const res = await notificationService.getNotifications(pg, 15, unreadOnly);
+      const content = res.data?.data?.content || res.data?.data || [];
+      if (reset || pg === 0) {
+        setNotifications(content);
+      } else {
+        setNotifications((prev) => {
+          const ids = new Set(prev.map((n) => n.notificationId || n.id));
+          return [...prev, ...content.filter((n) => !ids.has(n.notificationId || n.id))];
+        });
+      }
+      setPage(pg);
+      setHasMore(content.length === 15);
+    } catch { /* silent */ }
+    finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     if (isOpen) {
-      setLoading(true);
-      notificationService
-        .getNotifications(0, 20)
-        .then((res) => {
-          const data = res.data?.data?.content || res.data?.data || [];
-          setNotifications(data);
-        })
-        .catch((err) => console.error('Failed to fetch notifications', err))
-        .finally(() => setLoading(false));
+      fetchNotifications(0, activeTab, true);
     }
-  }, [isOpen]);
+  }, [isOpen, activeTab, fetchNotifications]);
 
-  // Click outside to close
+  // Close on outside click
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleMarkAsRead = async (notif) => {
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop - clientHeight < 60 && hasMore && !loadingMore && !loading) {
+      fetchNotifications(page + 1, activeTab, false);
+    }
+  };
+
+  const handleRead = async (notif) => {
     const id = notif.notificationId || notif.id;
     if (!notif.isRead && id) {
       try {
         await notificationService.markAsRead(id);
         setNotifications((prev) =>
-          prev.map((n) =>
-            (n.notificationId || n.id) === id ? { ...n, isRead: true } : n
-          )
+          prev.map((n) => (n.notificationId || n.id) === id ? { ...n, isRead: true } : n)
         );
-        decrementUnreadCount();
-      } catch (err) {
-        console.error('Failed to mark read', err);
-      }
-    }
-
-    // Navigate to target
-    setIsOpen(false);
-    if (notif.entityType === 'POST' && notif.entityId) {
-      navigate(`/posts/${notif.entityId}`);
-    } else if (notif.type === 'FRIEND_REQUEST' || notif.type === 'FRIEND_ACCEPTED') {
-      navigate('/friends');
-    } else if (notif.senderId) {
-      navigate(`/users/${notif.senderId}`);
+        decrementUnread();
+      } catch { /* silent */ }
     }
   };
 
@@ -120,127 +254,187 @@ export default function NotificationDropdown() {
       await notificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark all as read', err);
-    }
+    } catch { /* silent */ }
   };
 
-  const handleDeleteNotif = async (e, notifId) => {
-    e.stopPropagation();
+  const handleDelete = async (notifId) => {
     if (!notifId) return;
     try {
       await notificationService.deleteNotification(notifId);
       setNotifications((prev) => prev.filter((n) => (n.notificationId || n.id) !== notifId));
-    } catch (err) {
-      console.error('Failed to delete notification', err);
-    }
+    } catch { /* silent */ }
   };
 
-  const timeAgo = (date) => {
-    if (!date) return '';
-    const diffInSeconds = Math.floor((new Date() - new Date(date)) / 1000);
-    if (diffInSeconds < 60) return 'Vừa xong';
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} giờ trước`;
-    return new Date(date).toLocaleDateString('vi-VN');
+  const switchTab = (tab) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setPage(0);
+    setHasMore(true);
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Notification Bell Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200 hover:scale-105"
-        title="Thông báo"
-      >
-        <Bell className="w-[22px] h-[22px]" />
-        {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-sm animate-pulse">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-fade-in">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/70">
-            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              Thông báo
-            </h3>
+      {/* Bell button / Sidebar trigger */}
+      {isSidebar ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition font-medium cursor-pointer ${
+            isOpen
+              ? 'bg-indigo-50 text-indigo-600 font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+          aria-label="Thông báo"
+        >
+          <div className="relative flex items-center justify-center flex-shrink-0">
+            <Bell size={22} className="stroke-[1.75]" />
             {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
-              >
-                <CheckCheck size={14} />
-                Đọc tất cả
-              </button>
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
           </div>
+          <span className="hidden xl:block text-sm leading-none">Thông báo</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className={`relative w-8 h-8 flex items-center justify-center rounded-full transition ${
+            isOpen
+              ? 'bg-indigo-100 text-indigo-600'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+          aria-label="Thông báo"
+        >
+          <Bell size={19} strokeWidth={1.9} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
 
-          {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
-            {loading && notifications.length === 0 ? (
-              <div className="py-10 flex justify-center">
-                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      {/* Dropdown */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: isSidebar ? 0 : 8, x: isSidebar ? -8 : 0, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isSidebar ? 0 : 8, x: isSidebar ? -8 : 0, scale: 0.97 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className={
+              isSidebar
+                ? 'absolute left-full top-0 ml-3 w-[360px] sm:w-[380px] bg-white rounded-2xl shadow-dropdown border border-slate-200 z-50 overflow-hidden'
+                : 'fixed top-[56px] left-3 right-3 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2 sm:w-[380px] bg-white rounded-2xl shadow-dropdown border border-slate-200 z-50 overflow-hidden'
+            }
+          >
+            {/* Header */}
+            <div className="px-4 pt-4 pb-2">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-slate-900 text-base">Thông báo</h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-xl transition cursor-pointer"
+                  >
+                    <CheckCheck size={13} />
+                    Đọc tất cả
+                  </button>
+                )}
               </div>
-            ) : notifications.length > 0 ? (
-              notifications.map((notif, idx) => {
-                const notifId = notif.notificationId || notif.id;
-                const isRead = notif.isRead || notif.read;
-                return (
-                  <div
-                    key={notifId || idx}
-                    onClick={() => handleMarkAsRead(notif)}
-                    className={`flex items-start gap-3 p-3.5 hover:bg-gray-50/80 cursor-pointer transition group relative ${
-                      !isRead ? 'bg-blue-50/50' : 'bg-white'
+
+              {/* Tabs */}
+              <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+                {[
+                  { key: 'all',    label: 'Tất cả' },
+                  { key: 'unread', label: `Chưa đọc${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => switchTab(tab.key)}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-[10px] transition cursor-pointer ${
+                      activeTab === tab.key
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    <div className="relative flex-shrink-0">
-                      <img
-                        src={notif.senderAvatar || 'https://via.placeholder.com/40'}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm"
-                      />
-                      {!isRead && (
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-600 rounded-full ring-2 ring-white" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className="text-xs text-gray-800 leading-snug">
-                        {getNotificationText(notif)}
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        {timeAgo(notif.createdAt)}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteNotif(e, notifId)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 rounded-md transition absolute top-3 right-2"
-                      title="Xoá thông báo"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="py-10 text-center text-xs text-gray-400">
-                Chưa có thông báo nào.
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+
+            {/* Notification List */}
+            <div
+              ref={listRef}
+              onScroll={handleScroll}
+              className="max-h-[420px] overflow-y-auto divide-y divide-slate-100 custom-scrollbar"
+            >
+              {loading ? (
+                // Skeleton loading
+                <div className="divide-y divide-slate-100">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="flex items-start gap-3 px-4 py-3">
+                      <div className="w-11 h-11 rounded-full bg-slate-200 animate-pulse flex-shrink-0" />
+                      <div className="flex-1 space-y-1.5 pt-1">
+                        <div className="h-3 bg-slate-200 rounded w-4/5 animate-pulse" />
+                        <div className="h-2.5 bg-slate-100 rounded w-1/3 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : notifications.length > 0 ? (
+                <>
+                  {notifications.map((notif, idx) => (
+                    <NotifItem
+                      key={notif.notificationId || notif.id || idx}
+                      notif={notif}
+                      onRead={handleRead}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                  {loadingMore && (
+                    <div className="flex justify-center py-3">
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
+                    </div>
+                  )}
+                  {!hasMore && (
+                    <p className="text-center py-4 text-[11px] text-slate-400">
+                      Bạn đã xem hết thông báo
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="py-14 flex flex-col items-center gap-2 text-center px-6">
+                  <span className="text-3xl">🔔</span>
+                  <p className="font-semibold text-slate-700 text-sm">
+                    {activeTab === 'unread' ? 'Không có thông báo chưa đọc' : 'Chưa có thông báo nào'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {activeTab === 'unread'
+                      ? 'Bạn đã đọc hết rồi!'
+                      : 'Khi có người tương tác với bạn, thông báo sẽ xuất hiện ở đây.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer link */}
+            <div className="border-t border-slate-100 px-4 py-2.5">
+              <button
+                type="button"
+                onClick={() => { setIsOpen(false); navigate('/notifications'); }}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 py-2 rounded-xl transition cursor-pointer"
+              >
+                Xem tất cả thông báo
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
