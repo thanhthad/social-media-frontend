@@ -19,9 +19,12 @@ import {
   ShieldCheck,
   Compass,
   Navigation,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import datingService from '../services/datingService';
+import EditDatingProfileModal from '../components/dating/EditDatingProfileModal';
+
 
 export default function DatingSettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -61,6 +64,24 @@ export default function DatingSettingsPage() {
   // GPS Location Status
   const [gpsStatus, setGpsStatus] = useState('');
   const [gpsLoading, setGpsLoading] = useState(false);
+
+  // Facebook-style Edit Dating Profile Modal (1 field at a time)
+  const [showEditDatingModal, setShowEditDatingModal] = useState(false);
+  const [savingField, setSavingField] = useState('');
+
+  // Save 1 single field
+  const handleSaveSingleField = async (fieldName, value) => {
+    setSavingField(fieldName);
+    try {
+      await datingService.patchDatingProfileField(fieldName, value);
+      toast.success('Đã lưu mục này thành công!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu mục này');
+    } finally {
+      setSavingField('');
+    }
+  };
+
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -348,17 +369,37 @@ export default function DatingSettingsPage() {
       {/* TAB 1: Profile Info */}
       {activeTab === 'profile' && (
         <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-6">
-          <div className="border-b border-gray-100 pb-4">
-            <h3 className="text-lg font-black text-gray-900">Thông tin cơ bản</h3>
-            <p className="text-xs text-gray-400">Hiển thị cho đối phương khi xem hồ sơ của bạn</p>
+          <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-gray-900">Thông tin cơ bản</h3>
+              <p className="text-xs text-gray-400">Hiển thị cho đối phương khi xem hồ sơ của bạn</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEditDatingModal(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-md shadow-pink-500/20 active:scale-95 self-start sm:self-auto cursor-pointer"
+            >
+              <Pencil size={14} />
+              <span>Chỉnh sửa từng mục (Pop-up Facebook)</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Display Name */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Tên hiển thị *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Tên hiển thị *
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'DISPLAY_NAME'}
+                  onClick={() => handleSaveSingleField('DISPLAY_NAME', profile.displayName)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'DISPLAY_NAME' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={profile.displayName}
@@ -371,9 +412,19 @@ export default function DatingSettingsPage() {
 
             {/* Gender */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Giới tính *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Giới tính *
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'GENDER'}
+                  onClick={() => handleSaveSingleField('GENDER', profile.gender)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'GENDER' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <select
                 value={profile.gender}
                 onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
@@ -387,9 +438,19 @@ export default function DatingSettingsPage() {
 
             {/* Birthday */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Ngày sinh (tự tính tuổi & cung hoàng đạo)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Ngày sinh (tự tính tuổi & cung hoàng đạo)
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'BIRTHDAY'}
+                  onClick={() => handleSaveSingleField('BIRTHDAY', profile.birthday)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'BIRTHDAY' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="date"
                 value={profile.birthday}
@@ -400,9 +461,19 @@ export default function DatingSettingsPage() {
 
             {/* Height */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Chiều cao (cm)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Chiều cao (cm)
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'HEIGHT'}
+                  onClick={() => handleSaveSingleField('HEIGHT', String(profile.height))}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'HEIGHT' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="number"
                 min="100"
@@ -416,9 +487,19 @@ export default function DatingSettingsPage() {
 
             {/* Occupation */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Nghề nghiệp
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Nghề nghiệp
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'OCCUPATION'}
+                  onClick={() => handleSaveSingleField('OCCUPATION', profile.occupation)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'OCCUPATION' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={profile.occupation}
@@ -430,9 +511,19 @@ export default function DatingSettingsPage() {
 
             {/* Education */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Trường học / Học vấn
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Trường học / Học vấn
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'EDUCATION'}
+                  onClick={() => handleSaveSingleField('EDUCATION', profile.education)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'EDUCATION' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={profile.education}
@@ -444,9 +535,19 @@ export default function DatingSettingsPage() {
 
             {/* City */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Tỉnh / Thành phố
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Tỉnh / Thành phố
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'CITY'}
+                  onClick={() => handleSaveSingleField('CITY', profile.city)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'CITY' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={profile.city}
@@ -458,9 +559,19 @@ export default function DatingSettingsPage() {
 
             {/* District */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Quận / Huyện
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Quận / Huyện
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'DISTRICT'}
+                  onClick={() => handleSaveSingleField('DISTRICT', profile.district)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'DISTRICT' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <input
                 type="text"
                 value={profile.district}
@@ -472,9 +583,19 @@ export default function DatingSettingsPage() {
 
             {/* Bio */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
-                Giới thiệu về bản thân (Bio)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                  Giới thiệu về bản thân (Bio)
+                </label>
+                <button
+                  type="button"
+                  disabled={savingField === 'BIO'}
+                  onClick={() => handleSaveSingleField('BIO', profile.bio)}
+                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                >
+                  {savingField === 'BIO' ? 'Đang lưu...' : 'Lưu mục này'}
+                </button>
+              </div>
               <textarea
                 rows={3}
                 value={profile.bio}
@@ -493,16 +614,27 @@ export default function DatingSettingsPage() {
                   Khi bật, hồ sơ của bạn sẽ xuất hiện để người khác quẹt thẻ.
                 </p>
               </div>
-              <select
-                value={profile.visibility}
-                onChange={(e) => setProfile({ ...profile, visibility: e.target.value })}
-                className="px-3 py-2 bg-white border border-pink-200 rounded-xl text-xs font-bold text-pink-700 outline-none cursor-pointer"
-              >
-                <option value="PUBLIC">Đang bật (Công khai)</option>
-                <option value="PRIVATE">Tạm ẩn (Riêng tư)</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  value={profile.visibility}
+                  onChange={(e) => setProfile({ ...profile, visibility: e.target.value })}
+                  className="px-3 py-2 bg-white border border-pink-200 rounded-xl text-xs font-bold text-pink-700 outline-none cursor-pointer"
+                >
+                  <option value="PUBLIC">Đang bật (Công khai)</option>
+                  <option value="PRIVATE">Tạm ẩn (Riêng tư)</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={savingField === 'VISIBILITY'}
+                  onClick={() => handleSaveSingleField('VISIBILITY', profile.visibility)}
+                  className="px-3 py-1.5 bg-pink-600 text-white rounded-xl text-xs font-bold hover:bg-pink-700 transition"
+                >
+                  {savingField === 'VISIBILITY' ? '...' : 'Lưu'}
+                </button>
+              </div>
             </div>
           </div>
+
 
           <div className="pt-4 flex justify-end">
             <button
@@ -823,7 +955,18 @@ export default function DatingSettingsPage() {
           )}
         </div>
       )}
+
+      {/* ── Facebook-style Edit Dating Profile Modal ── */}
+      <EditDatingProfileModal
+        isOpen={showEditDatingModal}
+        onClose={() => setShowEditDatingModal(false)}
+        datingProfile={profile}
+        onProfileUpdated={(updatedFields) => {
+          setProfile((prev) => ({ ...prev, ...updatedFields }));
+        }}
+      />
     </div>
   );
 }
+
 

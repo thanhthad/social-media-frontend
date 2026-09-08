@@ -114,6 +114,19 @@ export const datingService = {
     return response.data;
   },
 
+  /**
+   * Cập nhật 1 field riêng lẻ trên hồ sơ dating (Facebook-style inline edit).
+   * @param {string} fieldName - Tên field (xem enum DatingProfileFieldName ở BE)
+   * @param {string|null} value - Giá trị mới dạng string, hoặc null để xóa
+   */
+  patchDatingProfileField: async (fieldName, value) => {
+    const response = await axiosClient.patch(`${DATING_API_PREFIX}/me/profile/field`, {
+      fieldName,
+      value,
+    });
+    return response.data;
+  },
+
   // ==========================================
   // DISCOVERY APIS
   // ==========================================

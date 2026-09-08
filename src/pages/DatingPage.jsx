@@ -17,6 +17,7 @@ import {
   AlertCircle,
   ShieldAlert,
   Navigation,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import datingService from '../services/datingService';
@@ -25,6 +26,8 @@ import DatingProfileDetailModal from '../components/dating/DatingProfileDetailMo
 import MatchModal from '../components/dating/MatchModal';
 import DatingFilterDrawer from '../components/dating/DatingFilterDrawer';
 import ReportModal from '../components/dating/ReportModal';
+import EditDatingProfileModal from '../components/dating/EditDatingProfileModal';
+
 
 export default function DatingPage() {
   const navigate = useNavigate();
@@ -43,6 +46,8 @@ export default function DatingPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [reportUser, setReportUser] = useState(null);
   const [preferences, setPreferences] = useState(null);
+  const [showEditDatingModal, setShowEditDatingModal] = useState(false);
+
 
   // GPS auto-update (silent)
   const gpsUpdatedRef = useRef(false);
@@ -352,6 +357,15 @@ export default function DatingPage() {
             <SlidersHorizontal size={16} />
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowEditDatingModal(true)}
+            className="p-2 bg-white rounded-2xl shadow-xs border border-gray-100 text-gray-700 hover:text-pink-600 hover:border-pink-200 transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            title="Chỉnh sửa hồ sơ hẹn hò"
+          >
+            <Pencil size={16} />
+          </button>
+
           <Link
             to="/dating/settings"
             className="p-2 bg-white rounded-2xl shadow-xs border border-gray-100 text-gray-700 hover:text-gray-900 transition transform hover:scale-105 active:scale-95"
@@ -361,6 +375,7 @@ export default function DatingPage() {
           </Link>
         </div>
       </div>
+
 
       {/* MISSING COORDINATES BANNER (Auto Recovery) */}
       {missingCoordinates && (
@@ -585,7 +600,18 @@ export default function DatingPage() {
         targetUserId={reportUser?.userId || reportUser?.id}
         targetUserName={reportUser?.displayName || reportUser?.username}
       />
+
+      {/* ── Facebook-style Edit Dating Profile Modal ── */}
+      <EditDatingProfileModal
+        isOpen={showEditDatingModal}
+        onClose={() => setShowEditDatingModal(false)}
+        datingProfile={myProfile}
+        onProfileUpdated={(updatedFields) => {
+          setMyProfile((prev) => ({ ...prev, ...updatedFields }));
+        }}
+      />
     </div>
   );
 }
+
 
