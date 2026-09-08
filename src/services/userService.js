@@ -39,6 +39,14 @@ const userService = {
     return axiosClient.put('/users/me/profile/visibility', { visibility });
   },
 
+  /**
+   * Cập nhật 1 field riêng lẻ trên Profile (Facebook-style inline edit).
+   * @param {string} fieldName - Tên field (xem enum ProfileFieldName ở BE)
+   * @param {string|null} value - Giá trị mới dạng string, hoặc null để xóa
+   */
+  patchProfileField: (fieldName, value) =>
+    axiosClient.patch('/users/me/profile/field', { fieldName, value }),
+
   updateUsername: (data) =>
     axiosClient.put('/users/me/username', { userName: data.username || data.userName }),
 

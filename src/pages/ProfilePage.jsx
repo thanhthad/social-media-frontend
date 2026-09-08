@@ -13,7 +13,11 @@ import PostCard from '../components/post/PostCard';
 import CreatePostForm from '../components/post/CreatePostForm';
 import MutualFriendsModal from '../components/friend/MutualFriendsModal';
 import StoryViewerModal from '../components/story/StoryViewerModal';
+import EditFieldModal from '../components/profile/EditFieldModal';
+import EditProfileModal from '../components/profile/EditProfileModal';
 import toast from 'react-hot-toast';
+
+
 import {
   UserPlus,
   UserCheck,
@@ -40,7 +44,9 @@ import {
   Plus,
   Clapperboard,
   Heart,
+  Pencil,
 } from 'lucide-react';
+
 
 export default function ProfilePage() {
   const { userId: paramUserId } = useParams();
@@ -96,6 +102,58 @@ export default function ProfilePage() {
   // Story
   const [myStories, setMyStories] = useState([]);
   const [storyViewer, setStoryViewer] = useState({ open: false, index: 0, stories: [] });
+
+  // ── Facebook-style inline edit (per-field popup) ──────────────────────────
+  const [editModal, setEditModal] = useState({
+    open: false,
+    fieldName: '',       // enum ProfileFieldName ở BE
+    fieldLabel: '',      // nhãn hiển thị trong modal
+    fieldType: 'text',   // 'text' | 'textarea' | 'date' | 'select' | 'number'
+    fieldOptions: [],    // [{ value, label }] khi fieldType === 'select'
+    initialValue: '',    // giá trị hiện tại
+    maxLength: undefined,
+    placeholder: '',
+  });
+
+  // Facebook-style full edit profile modal
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+
+
+  /** Mở popup chỉnh sửa 1 field */
+  const openEditModal = (cfg) => setEditModal({ ...cfg, open: true });
+  /** Đóng popup */
+  const closeEditModal = () => setEditModal((m) => ({ ...m, open: false }));
+
+  /**
+   * Gọi API patch 1 field rồi cập nhật local state ngay lập tức.
+   * @param {string} fieldName - enum ProfileFieldName (VD: "BIO")
+   * @param {string|null} value
+   */
+  const handleFieldSave = async (fieldName, value) => {
+    await userService.patchProfileField(fieldName, value);
+    // Cập nhật local profileData để UI phản ánh ngay không cần reload
+    setProfileData((prev) => {
+      if (!prev) return prev;
+      const fieldMap = {
+        FULL_NAME: 'fullName',
+        BIO: 'bio',
+        DATE_OF_BIRTH: 'dateOfBirth',
+        GENDER: 'gender',
+        PHONE: 'phone',
+        WEBSITE: 'website',
+        COUNTRY: 'country',
+        CITY: 'city',
+        DISTRICT: 'district',
+        OCCUPATION: 'occupation',
+        COMPANY: 'company',
+        EDUCATION: 'education',
+        VISIBILITY: 'visibility',
+      };
+      const key = fieldMap[fieldName];
+      return key ? { ...prev, [key]: value } : prev;
+    });
+    toast.success('Đã cập nhật thành công!');
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -453,16 +511,16 @@ export default function ProfilePage() {
           {/* Action Buttons */}
           <div className="flex items-center gap-2.5 flex-shrink-0" ref={menuRef}>
             {isOwnProfile ? (
-              <>
-                <Link
-                  to="/edit-profile"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 px-5 py-2.5 text-xs font-bold transition active:scale-95"
-                >
-                  <Edit3 size={15} />
-                  Chỉnh sửa trang cá nhân
-                </Link>
-              </>
+              <button
+                type="button"
+                onClick={() => setShowEditProfileModal(true)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 px-5 py-2.5 text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm"
+              >
+                <Edit3 size={15} />
+                Chỉnh sửa trang cá nhân
+              </button>
             ) : (
+
               isAuthenticated && (
                 <>
                   {isFriend ? (
@@ -577,46 +635,202 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-3 text-sm">
-                {bio && (
-                  <p className="text-gray-700 leading-relaxed italic border-l-2 border-blue-200 pl-3">
-                    "{bio}"
-                  </p>
+                {/* ── Bio ── */}
+                {(bio || isOwnProfile) && (
+                  <div className="group flex items-start gap-2">
+                    <p className="flex-1 text-gray-700 leading-relaxed italic border-l-2 border-blue-200 pl-3">
+                      {bio ? `"${bio}"` : (
+                        <span className="text-gray-400 not-italic">Thêm giới thiệu về bạn…</span>
+                      )}
+                    </p>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'BIO',
+                          fieldLabel: 'Giới thiệu bản thân',
+                          fieldType: 'textarea',
+                          initialValue: bio || '',
+                          maxLength: 500,
+                          placeholder: 'Viết vài dòng giới thiệu về bạn…',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa giới thiệu"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
                 )}
-                {occupation && (
-                  <div className="flex items-start gap-2.5 text-gray-700">
+
+                {/* ── Occupation + Company ── */}
+                {(occupation || isOwnProfile) && (
+                  <div className="group flex items-start gap-2.5 text-gray-700">
                     <Briefcase size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span>
-                      {occupation}
-                      {company && <span className="text-gray-500"> tại <strong>{company}</strong></span>}
+                    <span className="flex-1">
+                      {occupation
+                        ? <>{occupation}{company && <span className="text-gray-500"> tại <strong>{company}</strong></span>}</>
+                        : <span className="text-gray-400 text-xs">Thêm nghề nghiệp…</span>
+                      }
                     </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'OCCUPATION',
+                          fieldLabel: 'Nghề nghiệp',
+                          fieldType: 'text',
+                          initialValue: occupation || '',
+                          maxLength: 100,
+                          placeholder: 'Lập trình viên, Giáo viên…',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa nghề nghiệp"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                   </div>
                 )}
-                {education && (
-                  <div className="flex items-start gap-2.5 text-gray-700">
+
+                {/* ── Company (riêng nếu có occupation) ── */}
+                {occupation && (company || isOwnProfile) && (
+                  <div className="group flex items-start gap-2.5 text-gray-700 pl-6">
+                    <span className="flex-1 text-xs text-gray-500">
+                      {company
+                        ? <>tại <strong>{company}</strong></>
+                        : <span className="text-gray-400">Thêm công ty…</span>
+                      }
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'COMPANY',
+                          fieldLabel: 'Công ty / Nơi làm việc',
+                          fieldType: 'text',
+                          initialValue: company || '',
+                          maxLength: 100,
+                          placeholder: 'Tên công ty, tổ chức…',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa công ty"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Education ── */}
+                {(education || isOwnProfile) && (
+                  <div className="group flex items-start gap-2.5 text-gray-700">
                     <GraduationCap size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span>{education}</span>
+                    <span className="flex-1">
+                      {education || <span className="text-gray-400 text-xs">Thêm học vấn…</span>}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'EDUCATION',
+                          fieldLabel: 'Học vấn',
+                          fieldType: 'text',
+                          initialValue: education || '',
+                          maxLength: 150,
+                          placeholder: 'Đại học Bách Khoa Hà Nội…',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa học vấn"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                   </div>
                 )}
-                {(city || country) && (
-                  <div className="flex items-center gap-2.5 text-gray-700">
+
+                {/* ── Location ── */}
+                {((city || country) || isOwnProfile) && (
+                  <div className="group flex items-center gap-2.5 text-gray-700">
                     <MapPin size={15} className="text-gray-400 flex-shrink-0" />
-                    <span>{[city, district, country].filter(Boolean).join(', ')}</span>
+                    <span className="flex-1">
+                      {[city, district, country].filter(Boolean).join(', ') || (
+                        <span className="text-gray-400 text-xs">Thêm địa điểm…</span>
+                      )}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'CITY',
+                          fieldLabel: 'Thành phố',
+                          fieldType: 'text',
+                          initialValue: city || '',
+                          maxLength: 100,
+                          placeholder: 'Hà Nội, TP. Hồ Chí Minh…',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa thành phố"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                   </div>
                 )}
-                {phone && (
-                  <div className="flex items-center gap-2.5 text-gray-700">
+
+                {/* ── Phone ── */}
+                {(phone || isOwnProfile) && (
+                  <div className="group flex items-center gap-2.5 text-gray-700">
                     <Phone size={15} className="text-gray-400 flex-shrink-0" />
-                    <span>{phone}</span>
+                    <span className="flex-1">
+                      {phone || <span className="text-gray-400 text-xs">Thêm số điện thoại…</span>}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'PHONE',
+                          fieldLabel: 'Số điện thoại',
+                          fieldType: 'text',
+                          initialValue: phone || '',
+                          placeholder: '0912 345 678',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa số điện thoại"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                   </div>
                 )}
-                {website && (
-                  <div className="flex items-center gap-2.5 text-gray-700">
+
+                {/* ── Website ── */}
+                {(website || isOwnProfile) && (
+                  <div className="group flex items-center gap-2.5 text-gray-700">
                     <Globe size={15} className="text-gray-400 flex-shrink-0" />
-                    <a href={website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
-                      {website}
-                    </a>
+                    <span className="flex-1">
+                      {website ? (
+                        <a href={website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
+                          {website}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Thêm website…</span>
+                      )}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'WEBSITE',
+                          fieldLabel: 'Website',
+                          fieldType: 'text',
+                          initialValue: website || '',
+                          maxLength: 255,
+                          placeholder: 'https://yourwebsite.com',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa website"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                   </div>
                 )}
+
+                {/* ── Social Links ── */}
                 {socialLinks && Object.entries(socialLinks).some(([, v]) => v) && (
                   <div className="pt-2 border-t border-gray-100 space-y-2">
                     <p className="text-xs font-semibold text-gray-400 flex items-center gap-1">
@@ -639,20 +853,24 @@ export default function ProfilePage() {
                     )}
                   </div>
                 )}
-                {!bio && !occupation && !education && !city && !phone && !website && (
-                  <p className="text-xs text-gray-400 text-center py-2">
-                    {isOwnProfile ? 'Thêm thông tin giới thiệu về bạn' : 'Chưa có thông tin giới thiệu'}
-                  </p>
+
+                {/* ── Placeholder khi chưa có gì ── */}
+                {!bio && !occupation && !education && !city && !phone && !website && !isOwnProfile && (
+                  <p className="text-xs text-gray-400 text-center py-2">Chưa có thông tin giới thiệu</p>
                 )}
+
+                {/* ── Mở modal chỉnh sửa chi tiết ── */}
                 {isOwnProfile && (
-                  <Link
-                    to="/edit-profile"
-                    className="mt-1 block text-center text-xs font-semibold text-blue-600 hover:bg-blue-50 py-2 rounded-xl transition"
+                  <button
+                    type="button"
+                    onClick={() => setShowEditProfileModal(true)}
+                    className="mt-1 w-full text-center text-xs font-semibold text-blue-600 hover:bg-blue-50 py-2 rounded-xl transition cursor-pointer"
                   >
-                    Chỉnh sửa thông tin
-                  </Link>
+                    Chỉnh sửa chi tiết thông tin
+                  </button>
                 )}
               </div>
+
             )}
           </div>
 
@@ -1035,6 +1253,31 @@ export default function ProfilePage() {
           }}
         />
       )}
+
+      {/* ── Facebook-style Per-Field Edit Modal ── */}
+      <EditFieldModal
+        open={editModal.open}
+        onClose={closeEditModal}
+        fieldLabel={editModal.fieldLabel}
+        fieldType={editModal.fieldType}
+        fieldOptions={editModal.fieldOptions}
+        initialValue={editModal.initialValue}
+        maxLength={editModal.maxLength}
+        placeholder={editModal.placeholder}
+        onSave={(value) => handleFieldSave(editModal.fieldName, value)}
+      />
+
+      {/* ── Facebook-style Full Edit Profile Modal ── */}
+      <EditProfileModal
+        isOpen={showEditProfileModal}
+        onClose={() => setShowEditProfileModal(false)}
+        profileData={profileData}
+        onProfileUpdated={(updatedFields) => {
+          setProfileData((prev) => ({ ...prev, ...updatedFields }));
+        }}
+      />
     </div>
   );
 }
+
+
