@@ -15,6 +15,8 @@ export default function StoryViewerModal({ stories = [], initialIndex = 0, curre
   const [loading, setLoading] = useState(false);
   const [activeStorySubIndex, setActiveStorySubIndex] = useState(0);
   const [showViewersList, setShowViewersList] = useState(false);
+  const [realtimeViewers, setRealtimeViewers] = useState([]);
+  const [loadingViewers, setLoadingViewers] = useState(false);
 
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
@@ -54,6 +56,22 @@ export default function StoryViewerModal({ stories = [], initialIndex = 0, curre
   }, [currentStoryUser, fetchUserStories]);
 
   const currentSubStory = userStories[activeStorySubIndex] || currentStoryUser;
+  const isMyStory = (currentSubStory?.userId || currentStoryUser?.userId) === currentUserId;
+
+  // Fetch viewers when viewing own story
+  useEffect(() => {
+    const sId = currentSubStory?.storyId || currentSubStory?.id;
+    if (isMyStory && sId) {
+      setLoadingViewers(true);
+      storyService.getViewers(sId)
+        .then((res) => {
+          const list = res.data?.data;
+          if (Array.isArray(list)) setRealtimeViewers(list);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingViewers(false));
+    }
+  }, [isMyStory, currentSubStory]);
 
   // Mark viewed
   useEffect(() => {
@@ -154,23 +172,6 @@ export default function StoryViewerModal({ stories = [], initialIndex = 0, curre
   };
 
   if (!currentStoryUser) return null;
-
-  const isMyStory = (currentSubStory?.userId || currentStoryUser.userId) === currentUserId;
-
-  const [realtimeViewers, setRealtimeViewers] = useState([]);
-  const [loadingViewers, setLoadingViewers] = useState(false);
-
-  useEffect(() => {
-    const sId = currentSubStory?.storyId || currentSubStory?.id;
-    if (isMyStory && sId) {
-      storyService.getViewers(sId)
-        .then((res) => {
-          const list = res.data?.data;
-          if (Array.isArray(list)) setRealtimeViewers(list);
-        })
-        .catch(() => {});
-    }
-  }, [isMyStory, currentSubStory]);
 
   // Viewers / interactions from API or MyStoryResponse
   const viewers = realtimeViewers.length > 0
