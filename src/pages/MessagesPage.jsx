@@ -750,7 +750,6 @@ export default function MessagesPage() {
                   messages.map((msg, index) => {
                     const isMine = msg.senderId === currentUid;
                     const myReact = msg.myReaction;
-                    const reactIcon = myReact ? REACTION_ICONS[myReact] : null;
                     const totalReactions = msg.totalReactions || 0;
                     const counts = msg.counts || {};
 

@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -25,7 +25,6 @@ import ReelsPage from './pages/ReelsPage';
 import AdminPage from './pages/AdminPage';
 import NotificationsPage from './pages/NotificationsPage';
 import NotificationBanner from './components/notification/NotificationBanner';
-import NotificationDropdown from './components/notification/NotificationDropdown';
 import InstagramSidebar from './components/layout/InstagramSidebar';
 import InstagramMobileHeader from './components/layout/InstagramMobileHeader';
 import CreateChoiceModal from './components/common/CreateChoiceModal';
@@ -36,17 +35,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import useWebSocketStore from './stores/useWebSocketStore';
 import {
   Home,
-  Search,
-  MessageSquare,
   Heart,
-  Users,
-  Bookmark,
-  Shield,
-  LogOut,
   Clapperboard,
-  User,
-  Settings,
-  ChevronDown,
   PlusSquare,
 } from 'lucide-react';
 

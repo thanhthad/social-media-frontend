@@ -63,7 +63,7 @@ export default function PostCard({
     setTotalReactions(Number(post.reactionCount ?? post.totalReactions ?? 0));
     setTotalComments(Number(post.commentCount ?? post.totalComments ?? 0));
     setMyReaction(post.myReactionType || post.myReaction || (post.reacted ? 'LIKE' : null));
-  }, [post.id, post.reactionCount, post.commentCount, post.myReactionType, post.myReaction, post.reacted]);
+  }, [post.id, post.reactionCount, post.totalReactions, post.commentCount, post.totalComments, post.myReactionType, post.myReaction, post.reacted]);
 
   // Only check saved status for posts that are NOT ours
   useEffect(() => {
