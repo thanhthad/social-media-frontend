@@ -8,12 +8,10 @@ import {
   MapPin,
   Phone,
   Globe,
-  Lock,
   Calendar,
   Eye,
   Pencil,
   Plus,
-  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import userService from '../../services/userService';

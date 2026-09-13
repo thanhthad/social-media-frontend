@@ -21,7 +21,6 @@ import toast from 'react-hot-toast';
 import {
   UserPlus,
   UserCheck,
-  UserMinus,
   Ban,
   Users,
   MoreVertical,
@@ -41,17 +40,18 @@ import {
   Camera,
   Play,
   Eye,
-  Plus,
   Clapperboard,
   Heart,
   Pencil,
+  Calendar,
+  User,
 } from 'lucide-react';
 
 
 export default function ProfilePage() {
   const { userId: paramUserId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser, currentUserId } = useUser();
+  const { user: currentUser, currentUserId, refreshUser } = useUser();
   const { isAuthenticated } = useAuth();
 
   const isOwnProfile = !paramUserId || Number(paramUserId) === currentUserId;
@@ -152,6 +152,9 @@ export default function ProfilePage() {
       const key = fieldMap[fieldName];
       return key ? { ...prev, [key]: value } : prev;
     });
+    if (isOwnProfile && refreshUser) {
+      refreshUser();
+    }
     toast.success('Đã cập nhật thành công!');
   };
 
@@ -160,8 +163,23 @@ export default function ProfilePage() {
       if (!targetUserId) return;
       setLoading(true);
       try {
-        if (isOwnProfile && currentUser) {
-          setProfileData(currentUser);
+        if (isOwnProfile) {
+          if (currentUser) {
+            setProfileData(currentUser);
+          }
+          try {
+            const res = await userService.getMe();
+            const meData = res.data?.data || res.data;
+            if (meData) {
+              setProfileData((prev) => ({
+                ...(prev || {}),
+                ...meData,
+                id: meData.userId || meData.id,
+              }));
+            }
+          } catch (e) {
+            console.error('Failed to fetch fresh user profile', e);
+          }
         } else {
           const res = await userService.getUserById(targetUserId);
           const data = res.data?.data || res.data;
@@ -172,7 +190,7 @@ export default function ProfilePage() {
           try {
             const blockRes = await blockService.checkBlocked(targetUserId);
             setIsBlocked(!!(blockRes.data?.data ?? blockRes.data));
-          } catch (e) {}
+          } catch (_) {}
         }
 
         // Fetch User Stats
@@ -354,6 +372,36 @@ export default function ProfilePage() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isOwnProfile && isBlocked) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-white rounded-3xl border border-gray-100 shadow-sm text-center space-y-4">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
+          <Ban size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Bạn đã chặn người dùng này</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto">
+          Bạn sẽ không nhìn thấy bài viết hoặc thông tin từ người này.
+        </p>
+        <div className="pt-2">
+          <button
+            onClick={async () => {
+              try {
+                await blockService.unblockUser(targetUserId);
+                setIsBlocked(false);
+                toast.success('Đã bỏ chặn người dùng này');
+              } catch {
+                toast.error('Không thể bỏ chặn');
+              }
+            }}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition shadow-sm cursor-pointer"
+          >
+            Bỏ chặn
+          </button>
+        </div>
       </div>
     );
   }
@@ -830,6 +878,67 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {/* ── Gender ── */}
+                {(gender || isOwnProfile) && (
+                  <div className="group flex items-center gap-2.5 text-gray-700">
+                    <User size={15} className="text-gray-400 flex-shrink-0" />
+                    <span className="flex-1">
+                      {gender ? (
+                        gender === 'MALE' ? 'Nam' : gender === 'FEMALE' ? 'Nữ' : 'Khác'
+                      ) : (
+                        <span className="text-gray-400 text-xs">Thêm giới tính…</span>
+                      )}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'GENDER',
+                          fieldLabel: 'Giới tính',
+                          fieldType: 'select',
+                          fieldOptions: [
+                            { value: 'MALE', label: 'Nam' },
+                            { value: 'FEMALE', label: 'Nữ' },
+                            { value: 'OTHER', label: 'Khác' },
+                          ],
+                          initialValue: gender || 'MALE',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa giới tính"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Date of Birth ── */}
+                {(dateOfBirth || isOwnProfile) && (
+                  <div className="group flex items-center gap-2.5 text-gray-700">
+                    <Calendar size={15} className="text-gray-400 flex-shrink-0" />
+                    <span className="flex-1">
+                      {dateOfBirth ? (
+                        String(dateOfBirth).substring(0, 10)
+                      ) : (
+                        <span className="text-gray-400 text-xs">Thêm ngày sinh…</span>
+                      )}
+                    </span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => openEditModal({
+                          fieldName: 'DATE_OF_BIRTH',
+                          fieldLabel: 'Ngày sinh',
+                          fieldType: 'date',
+                          initialValue: dateOfBirth ? String(dateOfBirth).substring(0, 10) : '',
+                        })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Chỉnh sửa ngày sinh"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* ── Social Links ── */}
                 {socialLinks && Object.entries(socialLinks).some(([, v]) => v) && (
                   <div className="pt-2 border-t border-gray-100 space-y-2">
@@ -855,7 +964,7 @@ export default function ProfilePage() {
                 )}
 
                 {/* ── Placeholder khi chưa có gì ── */}
-                {!bio && !occupation && !education && !city && !phone && !website && !isOwnProfile && (
+                {!bio && !occupation && !education && !city && !phone && !website && !gender && !dateOfBirth && !isOwnProfile && (
                   <p className="text-xs text-gray-400 text-center py-2">Chưa có thông tin giới thiệu</p>
                 )}
 
@@ -1274,6 +1383,9 @@ export default function ProfilePage() {
         profileData={profileData}
         onProfileUpdated={(updatedFields) => {
           setProfileData((prev) => ({ ...prev, ...updatedFields }));
+          if (isOwnProfile && refreshUser) {
+            refreshUser();
+          }
         }}
       />
     </div>
