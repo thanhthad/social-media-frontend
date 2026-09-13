@@ -74,6 +74,27 @@ export default function DatingSettingsPage() {
     setSavingField(fieldName);
     try {
       await datingService.patchDatingProfileField(fieldName, value);
+      const fieldKeyMap = {
+        DISPLAY_NAME: 'displayName',
+        BIO: 'bio',
+        GENDER: 'gender',
+        BIRTHDAY: 'birthday',
+        HEIGHT: 'height',
+        OCCUPATION: 'occupation',
+        EDUCATION: 'education',
+        CITY: 'city',
+        DISTRICT: 'district',
+        COUNTRY: 'country',
+        VISIBILITY: 'visibility',
+        ACTIVE: 'active',
+      };
+      const key = fieldKeyMap[fieldName];
+      if (key) {
+        let parsedValue = value;
+        if (fieldName === 'HEIGHT') parsedValue = Number(value) || 0;
+        else if (fieldName === 'ACTIVE') parsedValue = value === true || value === 'true';
+        setProfile((prev) => ({ ...prev, [key]: parsedValue }));
+      }
       toast.success('Đã lưu mục này thành công!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể lưu mục này');
@@ -346,6 +367,14 @@ export default function DatingSettingsPage() {
             Chăm chút cho hồ sơ của bạn nổi bật và thu hút nhiều đối tượng tương hợp nhất.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowEditDatingModal(true)}
+          className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-md shadow-pink-500/20 active:scale-95 self-start sm:self-auto cursor-pointer"
+        >
+          <Pencil size={14} />
+          <span>Chỉnh sửa nhanh (Pop-up)</span>
+        </button>
       </div>
 
       {/* Settings Navigation Tabs */}

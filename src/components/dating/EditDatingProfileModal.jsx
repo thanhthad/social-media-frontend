@@ -80,7 +80,13 @@ export default function EditDatingProfileModal({
     };
     const key = fieldKeyMap[fieldName];
     if (key) {
-      onProfileUpdated?.({ [key]: value });
+      let parsedValue = value;
+      if (fieldName === 'HEIGHT') {
+        parsedValue = Number(value) || 0;
+      } else if (fieldName === 'ACTIVE') {
+        parsedValue = value === true || value === 'true';
+      }
+      onProfileUpdated?.({ [key]: parsedValue });
     }
     toast.success('Đã cập nhật hồ sơ hẹn hò!');
   };
