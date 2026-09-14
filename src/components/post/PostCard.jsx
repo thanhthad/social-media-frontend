@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../../contexts/UserContext';
+import { useAuth } from '../../contexts/AuthContext';
 import reactionService from '../../services/reactionService';
 import postService from '../../services/postService';
 import savedPostService from '../../services/savedPostService';
@@ -31,6 +32,8 @@ export default function PostCard({
   initialShowComments = false,
 }) {
   const { user: currentUser, currentUserId } = useUser();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   // Use currentUserId from context (already normalised there)
   const postUid = post.userId ?? post.authorId ?? post.user?.id;
   const isOwner = !!(currentUserId && postUid && Number(currentUserId) === Number(postUid));
@@ -65,15 +68,15 @@ export default function PostCard({
     setMyReaction(post.myReactionType || post.myReaction || (post.reacted ? 'LIKE' : null));
   }, [post.id, post.reactionCount, post.totalReactions, post.commentCount, post.totalComments, post.myReactionType, post.myReaction, post.reacted]);
 
-  // Only check saved status for posts that are NOT ours
+  // Only check saved status for posts that are NOT ours when authenticated
   useEffect(() => {
-    if (post?.id && !isOwner) {
+    if (isAuthenticated && post?.id && !isOwner) {
       savedPostService
         .checkSavedStatus(post.id)
         .then((res) => setIsSaved(!!(res.data?.data ?? res.data)))
         .catch(() => {});
     }
-  }, [post?.id, isOwner]);
+  }, [isAuthenticated, post?.id, isOwner]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,6 +89,12 @@ export default function PostCard({
   }, []);
 
   const handleToggleSave = async () => {
+    if (!isAuthenticated) {
+      setShowMenu(false);
+      toast.error('Vui lòng đăng nhập để lưu bài viết');
+      navigate('/login');
+      return;
+    }
     try {
       if (isSaved) {
         await savedPostService.unsavePost(post.id);
@@ -104,6 +113,11 @@ export default function PostCard({
 
   const handleReport = async () => {
     setShowMenu(false);
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để báo cáo bài viết');
+      navigate('/login');
+      return;
+    }
     const reason = window.prompt('Nhập lý do báo cáo bài viết vi phạm:');
     if (reason && reason.trim()) {
       try {
@@ -117,6 +131,11 @@ export default function PostCard({
 
   const handleSelectReaction = async (type) => {
     setShowPicker(false);
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để thích bài viết');
+      navigate('/login');
+      return;
+    }
     const wasReacted = !!myReaction;
     const isRemoving = myReaction === type;
 
@@ -154,6 +173,11 @@ export default function PostCard({
 
   const handleDoubleClickMedia = (e) => {
     if (e) e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để thích bài viết');
+      navigate('/login');
+      return;
+    }
     setShowHeartPop(true);
     setTimeout(() => setShowHeartPop(false), 900);
     if (myReaction !== 'LOVE') {
@@ -505,7 +529,7 @@ export default function PostCard({
           {/* Comment Icon with Count */}
           <button
             type="button"
-            onClick={() => setShowComments(!showComments)}
+            onClick={handleToggleComments}
             className="text-gray-900 hover:opacity-80 transition cursor-pointer px-1.5 py-1 rounded-xl hover:bg-gray-100/80 flex items-center gap-1.5 select-none"
             title="Bình luận"
           >
@@ -549,7 +573,7 @@ export default function PostCard({
           {totalReactions > 0 && (
             <div
               className="flex -space-x-1 items-center select-none cursor-pointer"
-              onClick={() => setShowReactedModal(true)}
+              onClick={handleOpenReactedModal}
               title="Xem danh sách người bày tỏ cảm xúc"
             >
               <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center ring-1.5 ring-white shadow-xs">
@@ -562,7 +586,7 @@ export default function PostCard({
           )}
           <button
             type="button"
-            onClick={() => setShowReactedModal(true)}
+            onClick={handleOpenReactedModal}
             className="font-bold text-xs sm:text-sm text-gray-900 hover:underline cursor-pointer"
           >
             {totalReactions > 0 ? `${totalReactions.toLocaleString()} lượt thích` : 'Hãy là người đầu tiên thích bài viết'}
@@ -571,7 +595,7 @@ export default function PostCard({
 
         <button
           type="button"
-          onClick={() => setShowComments(!showComments)}
+          onClick={handleToggleComments}
           className="text-gray-500 hover:text-gray-900 font-medium hover:underline cursor-pointer"
         >
           {totalComments > 0 ? `${totalComments.toLocaleString()} bình luận` : '0 bình luận'}
@@ -644,7 +668,7 @@ export default function PostCard({
       <div className="px-4 py-0.5">
         <button
           type="button"
-          onClick={() => setShowComments(!showComments)}
+          onClick={handleToggleComments}
           className="text-xs text-gray-500 hover:text-gray-800 transition cursor-pointer font-normal"
         >
           {showComments

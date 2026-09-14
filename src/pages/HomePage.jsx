@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import postService from '../services/postService';
 import hashtagService from '../services/hashtagService';
 import CreatePostForm from '../components/post/CreatePostForm';
@@ -10,16 +11,19 @@ import PendingFriendRequests from '../components/friend/PendingFriendRequests';
 import { PostSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { useUser } from '../contexts/UserContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Sparkles,
   Compass,
   Users,
   Search,
   TrendingUp,
+  LogIn,
 } from 'lucide-react';
 
 const HomePage = () => {
   const { user } = useUser();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [trendingTags, setTrendingTags] = useState([]);
@@ -30,13 +34,15 @@ const HomePage = () => {
   const loadMoreRef = useRef(null);
 
   useEffect(() => {
-    fetchTrending();
-  }, []);
+    if (isAuthenticated) {
+      fetchTrending();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchPosts(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated]);
 
   const fetchTrending = async () => {
     try {
@@ -50,10 +56,15 @@ const HomePage = () => {
   const fetchPosts = async (pageNum = 0, isReset = false) => {
     setLoading(true);
     try {
-      const res =
-        activeTab === 'feed'
-          ? await postService.getFeed(pageNum, 10)
-          : await postService.getExplore(pageNum, 10);
+      let res;
+      if (!isAuthenticated) {
+        res = await postService.getPublicFeed(pageNum, 10);
+      } else {
+        res =
+          activeTab === 'feed'
+            ? await postService.getFeed(pageNum, 10)
+            : await postService.getExplore(pageNum, 10);
+      }
 
       const content = res.data?.data?.content || res.data?.data || [];
       if (isReset) {
@@ -78,6 +89,15 @@ const HomePage = () => {
     fetchPosts(page + 1, false);
   };
 
+  const handleTabChange = (tab) => {
+    if (!isAuthenticated && tab === 'explore') {
+      toast.error('Vui lòng đăng nhập để xem trang Khám phá');
+      navigate('/login');
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   const handlePostCreated = () => {
     if (activeTab === 'feed') fetchPosts(0, true);
     else setActiveTab('feed');
@@ -91,13 +111,13 @@ const HomePage = () => {
     <div className="max-w-5xl mx-auto flex justify-center gap-8 items-start pt-2 sm:pt-4 pb-4">
       {/* ── Center Feed Column ── */}
       <div className="w-full max-w-[600px] flex-1 min-w-0 space-y-3">
-        {/* Story Bar */}
-        <StoryBar />
+        {/* Story Bar (Only for logged in users) */}
+        {isAuthenticated && <StoryBar />}
 
         {/* Feed Tabs — minimal pill style */}
         <div className="flex bg-white rounded-2xl border border-slate-200 p-1 shadow-xs">
           <button
-            onClick={() => setActiveTab('feed')}
+            onClick={() => handleTabChange('feed')}
             className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'feed'
                 ? 'bg-indigo-600 text-white shadow-sm'
@@ -108,7 +128,7 @@ const HomePage = () => {
             Dành cho bạn
           </button>
           <button
-            onClick={() => setActiveTab('explore')}
+            onClick={() => handleTabChange('explore')}
             className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'explore'
                 ? 'bg-indigo-600 text-white shadow-sm'
@@ -120,8 +140,27 @@ const HomePage = () => {
           </button>
         </div>
 
-        {/* Create Post form (only for feed tab) */}
-        {activeTab === 'feed' && <CreatePostForm onPostCreated={handlePostCreated} />}
+        {/* Create Post form (for member) or Guest Prompt (for guest) */}
+        {activeTab === 'feed' && (
+          isAuthenticated ? (
+            <CreatePostForm onPostCreated={handlePostCreated} />
+          ) : (
+            <div
+              onClick={() => {
+                toast.error('Vui lòng đăng nhập để tạo bài viết');
+                navigate('/login');
+              }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-card flex items-center gap-3 cursor-pointer hover:border-indigo-300 hover:shadow-card-hover transition-all"
+            >
+              <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <LogIn size={18} />
+              </div>
+              <div className="flex-1 bg-slate-50 text-slate-500 px-4 py-2 rounded-xl text-xs font-medium">
+                Đăng nhập để chia sẻ suy nghĩ và kết nối với bạn bè...
+              </div>
+            </div>
+          )
+        )}
 
         {/* Posts */}
         <div className="space-y-3">
@@ -168,13 +207,13 @@ const HomePage = () => {
               title={activeTab === 'feed' ? 'Bảng tin đang trống' : 'Chưa có bài viết nào'}
               description={
                 activeTab === 'feed'
-                  ? 'Hãy kết bạn hoặc theo dõi thêm người dùng để xem bài viết của họ.'
+                  ? (isAuthenticated ? 'Hãy kết bạn hoặc theo dõi thêm người dùng để xem bài viết của họ.' : 'Chưa có bài viết công khai nào.')
                   : 'Chưa có bài viết để khám phá. Hãy quay lại sau.'
               }
               action={
-                activeTab === 'feed'
+                activeTab === 'feed' && isAuthenticated
                   ? { label: 'Tìm bạn bè', onClick: () => navigate('/friends') }
-                  : undefined
+                  : (!isAuthenticated ? { label: 'Đăng nhập', onClick: () => navigate('/login') } : undefined)
               }
             />
           </div>
@@ -183,37 +222,67 @@ const HomePage = () => {
 
       {/* ── Right Sidebar (Desktop only) ── */}
       <div className="hidden lg:block w-[300px] shrink-0 sticky top-5 space-y-4">
-        {/* Current User Card */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card">
-          <Link to="/profile" className="flex items-center gap-3 group">
-            {user?.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt=""
-                className="w-11 h-11 rounded-full object-cover border-2 border-slate-200 group-hover:border-indigo-300 transition-colors flex-shrink-0"
-              />
-            ) : (
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
-                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+        {/* Current User Card (or Guest Welcome Card) */}
+        {isAuthenticated ? (
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card">
+            <Link to="/profile" className="flex items-center gap-3 group">
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="w-11 h-11 rounded-full object-cover border-2 border-slate-200 group-hover:border-indigo-300 transition-colors flex-shrink-0"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
+                  {user?.fullName || user?.username}
+                </p>
+                <p className="text-xs text-slate-400 truncate">@{user?.username}</p>
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
-                {user?.fullName || user?.username}
-              </p>
-              <p className="text-xs text-slate-400 truncate">@{user?.username}</p>
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-card space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white shadow-xs">
+                <Sparkles size={16} />
+              </div>
+              <h3 className="font-bold text-slate-900 text-sm">VibeSocial</h3>
             </div>
-          </Link>
-        </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Đăng nhập để chia sẻ bài viết, tương tác Reels, theo dõi bạn bè và trò chuyện trực tiếp!
+            </p>
+            <div className="space-y-2 pt-1">
+              <Link
+                to="/login"
+                className="w-full flex items-center justify-center py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              >
+                Đăng nhập ngay
+              </Link>
+              <Link
+                to="/register"
+                className="w-full flex items-center justify-center py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Đăng ký tài khoản
+              </Link>
+            </div>
+          </div>
+        )}
 
-        {/* Pending Friend Requests */}
-        <PendingFriendRequests isWidget={true} limit={3} />
+        {/* Pending Friend Requests & Suggestions (Authenticated Only) */}
+        {isAuthenticated && (
+          <>
+            <PendingFriendRequests isWidget={true} limit={3} />
+            <FriendSuggestions />
+          </>
+        )}
 
-        {/* Friend Suggestions */}
-        <FriendSuggestions />
-
-        {/* Trending Hashtags */}
-        {trendingTags.length > 0 && (
+        {/* Trending Hashtags (Authenticated Only) */}
+        {isAuthenticated && trendingTags.length > 0 && (
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card space-y-3">
             <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
               <TrendingUp size={14} className="text-indigo-500" />
@@ -252,3 +321,4 @@ const HomePage = () => {
 };
 
 export default HomePage;
+

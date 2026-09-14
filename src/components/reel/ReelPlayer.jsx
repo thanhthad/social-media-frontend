@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUser } from '../../contexts/UserContext';
+import { useAuth } from '../../contexts/AuthContext';
 import reelService from '../../services/reelService';
 import savedPostService from '../../services/savedPostService';
 import followService from '../../services/followService';
@@ -37,6 +38,8 @@ export default function ReelPlayer({
   onReelDeleted,
 }) {
   const { user: currentUser, currentUserId } = useUser();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const isOwner = currentUserId && reel.userId && Number(currentUserId) === Number(reel.userId);
 
   const videoRef = useRef(null);
@@ -63,13 +66,13 @@ export default function ReelPlayer({
 
   // Check saved status
   useEffect(() => {
-    if (reel?.id && !isOwner) {
+    if (isAuthenticated && reel?.id && !isOwner) {
       savedPostService
         .checkSavedStatus(reel.id)
         .then((res) => setIsSaved(!!(res.data?.data ?? res.data)))
         .catch(() => {});
     }
-  }, [reel?.id, isOwner]);
+  }, [isAuthenticated, reel?.id, isOwner]);
 
   // Sync active state with video playback
   useEffect(() => {
@@ -108,8 +111,8 @@ export default function ReelPlayer({
     const dur = video.duration;
     setProgress((current / dur) * 100);
 
-    // Trigger startView after 1.5s of watching
-    if (current >= 1.5 && !viewTracked) {
+    // Trigger startView after 1.5s of watching (authenticated only)
+    if (isAuthenticated && current >= 1.5 && !viewTracked) {
       setViewTracked(true);
       reelService.startView(reel.id).catch(() => {});
     }
@@ -117,7 +120,7 @@ export default function ReelPlayer({
 
   // Handle video loop/ended
   const handleVideoEnded = () => {
-    if (videoRef.current) {
+    if (videoRef.current && isAuthenticated) {
       const durMs = Math.round(videoRef.current.duration * 1000);
       reelService.updateProgress(reel.id, durMs, true).catch(() => {});
       reelService.replay(reel.id).catch(() => {});
@@ -156,6 +159,11 @@ export default function ReelPlayer({
   // Double tap to Love
   const handleDoubleTap = (e) => {
     if (!containerRef.current) return;
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để thích Reel');
+      navigate('/login');
+      return;
+    }
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -171,6 +179,11 @@ export default function ReelPlayer({
 
   // Toggle Love
   const handleToggleLove = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để thích Reel');
+      navigate('/login');
+      return;
+    }
     // Optimistic UI
     const prevLoved = isLoved;
     const prevCount = reactionCount;
@@ -188,6 +201,11 @@ export default function ReelPlayer({
 
   // Toggle Save
   const handleToggleSave = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để lưu Reel');
+      navigate('/login');
+      return;
+    }
     try {
       if (isSaved) {
         await savedPostService.unsavePost(reel.id);
@@ -205,6 +223,11 @@ export default function ReelPlayer({
 
   // Handle Follow
   const handleToggleFollow = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để theo dõi người dùng');
+      navigate('/login');
+      return;
+    }
     if (!reel.userId || isOwner) return;
     try {
       if (isFollowing) {
@@ -237,6 +260,11 @@ export default function ReelPlayer({
   // Report Reel
   const handleReportReel = async () => {
     setShowMenu(false);
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để báo cáo Reel');
+      navigate('/login');
+      return;
+    }
     const reason = window.prompt('Nhập lý do báo cáo video này:');
     if (reason && reason.trim()) {
       try {
@@ -429,6 +457,11 @@ export default function ReelPlayer({
         <button
           onClick={(e) => {
             e.stopPropagation();
+            if (!isAuthenticated) {
+              toast.error('Vui lòng đăng nhập để xem và gửi bình luận');
+              navigate('/login');
+              return;
+            }
             setShowComments(true);
           }}
           className="flex flex-col items-center gap-1 group transition active:scale-90"

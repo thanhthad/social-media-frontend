@@ -7,6 +7,12 @@ const reelService = {
       params: { page, size },
     }),
 
+  // Public Feed (dành cho khách chưa đăng nhập)
+  getPublicReelFeed: (page = 0, size = 10) =>
+    axiosClient.get('/reels/public/feed', {
+      params: { page, size },
+    }),
+
   // Explore (khám phá xu hướng / hot score)
   getReelExplore: (page = 0, size = 10) =>
     axiosClient.get('/reels/explore', {

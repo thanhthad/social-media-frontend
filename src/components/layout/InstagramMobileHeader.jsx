@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Users, MessageCircle, Sparkles } from 'lucide-react';
+import { Search, Users, MessageCircle, Sparkles, LogIn } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import NotificationDropdown from '../notification/NotificationDropdown';
 import friendshipService from '../../services/friendshipService';
 
 export default function InstagramMobileHeader() {
+  const { isAuthenticated } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setPendingCount(0);
+      return;
+    }
+
     friendshipService
       .getPendingFriendRequests(0, 1)
       .then((res) => {
@@ -20,7 +27,7 @@ export default function InstagramMobileHeader() {
         setPendingCount(count);
       })
       .catch(() => {});
-  }, [location.pathname]);
+  }, [isAuthenticated, location.pathname]);
 
   return (
     <header className="md:hidden fixed top-0 left-0 right-0 h-[52px] bg-white/95 backdrop-blur-xl border-b border-slate-200 z-30 px-4 flex items-center justify-between select-none">
@@ -35,38 +42,50 @@ export default function InstagramMobileHeader() {
       </Link>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-0.5">
-        <Link
-          to="/search"
-          className="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
-          aria-label="Tìm kiếm"
-        >
-          <Search size={19} strokeWidth={1.9} />
-        </Link>
+      {isAuthenticated ? (
+        <div className="flex items-center gap-0.5">
+          <Link
+            to="/search"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
+            aria-label="Tìm kiếm"
+          >
+            <Search size={19} strokeWidth={1.9} />
+          </Link>
 
-        <Link
-          to="/friends"
-          className="relative w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
-          aria-label="Bạn bè"
-        >
-          <Users size={19} strokeWidth={1.9} />
-          {pendingCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-rose-500 ring-2 ring-white" />
-          )}
-        </Link>
+          <Link
+            to="/friends"
+            className="relative w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
+            aria-label="Bạn bè"
+          >
+            <Users size={19} strokeWidth={1.9} />
+            {pendingCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-rose-500 ring-2 ring-white" />
+            )}
+          </Link>
 
-        <div className="w-9 h-9 flex items-center justify-center">
-          <NotificationDropdown />
+          <div className="w-9 h-9 flex items-center justify-center">
+            <NotificationDropdown />
+          </div>
+
+          <Link
+            to="/messages"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
+            aria-label="Tin nhắn"
+          >
+            <MessageCircle size={19} strokeWidth={1.9} />
+          </Link>
         </div>
-
-        <Link
-          to="/messages"
-          className="w-9 h-9 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition active:scale-90"
-          aria-label="Tin nhắn"
-        >
-          <MessageCircle size={19} strokeWidth={1.9} />
-        </Link>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Link
+            to="/login"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs active:scale-95"
+          >
+            <LogIn size={14} />
+            <span>Đăng nhập</span>
+          </Link>
+        </div>
+      )}
     </header>
   );
 }

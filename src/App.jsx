@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -38,6 +38,7 @@ import {
   Heart,
   Clapperboard,
   PlusSquare,
+  LogIn,
 } from 'lucide-react';
 
 const queryClient = new QueryClient();
@@ -115,7 +116,26 @@ const MobileBottomNav = ({ onOpenCreateChoice }) => {
   const { isAuthenticated } = useAuth();
   const { user } = useUser();
   const location = useLocation();
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return (
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 safe-area-pb">
+        <div className="flex items-center justify-around px-1 pt-1">
+          {navLink('/', Home, 'Trang chủ')}
+          {navLink('/reels', Clapperboard, 'Reels', 'reels')}
+          <Link
+            to="/login"
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl transition-all text-indigo-600 active:scale-90"
+            aria-label="Đăng nhập"
+          >
+            <LogIn size={22} className="stroke-[2.2]" />
+            <span className="text-[10px] font-semibold leading-none">
+              Đăng nhập
+            </span>
+          </Link>
+        </div>
+      </nav>
+    );
+  }
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -267,15 +287,13 @@ const AnimatedRoutes = () => {
           }
         />
 
-        {/* Protected App Routes */}
+        {/* Public Feeds (Guests & Authenticated) */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
-              <PageTransition>
-                <HomePage />
-              </PageTransition>
-            </ProtectedRoute>
+            <PageTransition>
+              <HomePage />
+            </PageTransition>
           }
         />
         <Route
@@ -371,11 +389,9 @@ const AnimatedRoutes = () => {
         <Route
           path="/reels"
           element={
-            <ProtectedRoute>
-              <PageTransition>
-                <ReelsPage />
-              </PageTransition>
-            </ProtectedRoute>
+            <PageTransition>
+              <ReelsPage />
+            </PageTransition>
           }
         />
 
@@ -443,14 +459,32 @@ const AnimatedRoutes = () => {
 function AppContent() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showCreateReel, setShowCreateReel] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
 
+  const isAuthPage = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+  ].includes(location.pathname);
+
   const isFullScreenPage = ['/dating', '/reels', '/messages'].some((p) =>
     location.pathname === p || (p !== '/' && location.pathname.startsWith(p))
   );
+
+  const handleOpenCreateChoice = () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để tạo bài viết hoặc reel');
+      navigate('/login');
+      return;
+    }
+    setShowChoiceModal(true);
+  };
 
   return (
     <div
@@ -474,18 +508,18 @@ function AppContent() {
 
       <NotificationBanner />
 
-      {isAuthenticated && (
+      {!isAuthPage && (
         <>
-          <InstagramSidebar onOpenCreateChoice={() => setShowChoiceModal(true)} />
+          <InstagramSidebar onOpenCreateChoice={handleOpenCreateChoice} />
           <InstagramMobileHeader />
-          <MobileBottomNav onOpenCreateChoice={() => setShowChoiceModal(true)} />
+          <MobileBottomNav onOpenCreateChoice={handleOpenCreateChoice} />
         </>
       )}
 
       {/* Main Content Area */}
       <main
         className={`flex-grow w-full transition-all ${
-          isAuthenticated
+          !isAuthPage
             ? `md:pl-18 xl:pl-60 ${
                 isFullScreenPage
                   ? 'h-[100dvh] max-h-[100dvh] pt-14 md:pt-0 pb-16 md:pb-0 px-2 sm:px-4 overflow-hidden flex flex-col'

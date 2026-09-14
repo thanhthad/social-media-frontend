@@ -5,6 +5,9 @@ const postService = {
   getFeed: (page = 0, size = 10) =>
     axiosClient.get('/posts/feed', { params: { page, size } }),
 
+  getPublicFeed: (page = 0, size = 10) =>
+    axiosClient.get('/posts/public/feed', { params: { page, size } }),
+
   getExplore: (page = 0, size = 10) =>
     axiosClient.get('/posts/explore', { params: { page, size } }),
 

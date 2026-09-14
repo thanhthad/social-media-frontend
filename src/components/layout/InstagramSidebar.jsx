@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUser } from '../../contexts/UserContext';
 import NotificationDropdown from '../notification/NotificationDropdown';
@@ -18,6 +19,10 @@ import {
   Menu,
   Sparkles,
   Users,
+  Bell,
+  LogIn,
+  UserPlus,
+  User,
 } from 'lucide-react';
 
 // All nav items use indigo-600 as active, except Dating (rose) and Reels (fuchsia)
@@ -30,7 +35,7 @@ const NAV_ITEMS = [
   { to: '/friends', icon: Users,         label: 'Bạn bè' },
 ];
 
-function NavItem({ item, isActiveRoute }) {
+function NavItem({ item, isActiveRoute, isAuthenticated, onRequireAuth }) {
   const Icon = item.icon;
   const active = isActiveRoute(item.to, item.exact);
 
@@ -50,9 +55,18 @@ function NavItem({ item, isActiveRoute }) {
 
   const iconFill = item.special === 'dating' && active ? 'fill-rose-500' : '';
 
+  const handleClick = (e) => {
+    const isPublic = item.to === '/' || item.to === '/reels';
+    if (!isAuthenticated && !isPublic) {
+      e.preventDefault();
+      onRequireAuth(item.label);
+    }
+  };
+
   return (
     <Link
       to={item.to}
+      onClick={handleClick}
       className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 group font-medium ${
         active
           ? `${activeTextColor} ${activeBgColor} font-semibold`
@@ -70,9 +84,10 @@ function NavItem({ item, isActiveRoute }) {
 }
 
 export default function InstagramSidebar({ onOpenCreateChoice }) {
-  const { logout }                           = useAuth();
+  const { isAuthenticated, logout }          = useAuth();
   const { user, isAdmin, logout: clearUser } = useUser();
   const location  = useLocation();
+  const navigate  = useNavigate();
   const [showMore, setShowMore] = useState(false);
   const moreRef   = useRef(null);
 
@@ -80,6 +95,11 @@ export default function InstagramSidebar({ onOpenCreateChoice }) {
     setShowMore(false);
     logout();
     if (clearUser) clearUser();
+  };
+
+  const handleRequireAuth = (featureName) => {
+    toast.error(`Vui lòng đăng nhập để sử dụng ${featureName}`);
+    navigate('/login');
   };
 
   useEffect(() => {
@@ -116,115 +136,170 @@ export default function InstagramSidebar({ onOpenCreateChoice }) {
         {/* Nav Items */}
         <nav className="space-y-0.5">
           {NAV_ITEMS.map((item) => (
-            <NavItem key={item.to} item={item} isActiveRoute={isActiveRoute} />
+            <NavItem
+              key={item.to}
+              item={item}
+              isActiveRoute={isActiveRoute}
+              isAuthenticated={isAuthenticated}
+              onRequireAuth={handleRequireAuth}
+            />
           ))}
 
           {/* Notifications */}
-          <NotificationDropdown isSidebar />
+          {isAuthenticated ? (
+            <NotificationDropdown isSidebar />
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleRequireAuth('Thông báo')}
+              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 group font-medium cursor-pointer"
+              title="Thông báo"
+            >
+              <Bell size={22} className="flex-shrink-0 stroke-[1.75] group-hover:scale-105 transition-transform" />
+              <span className="hidden xl:block text-sm leading-none">Thông báo</span>
+            </button>
+          )}
 
           {/* Create */}
           <button
             type="button"
             onClick={onOpenCreateChoice}
             className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 group font-medium cursor-pointer"
+            title="Tạo mới"
           >
             <PlusSquare size={22} className="flex-shrink-0 stroke-[1.75] group-hover:scale-105 transition-transform" />
             <span className="hidden xl:block text-sm leading-none">Tạo mới</span>
           </button>
 
           {/* Profile */}
-          <Link
-            to="/profile"
-            className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 font-medium ${
-              isActiveRoute('/profile')
-                ? 'text-indigo-600 bg-indigo-50 font-semibold'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <div className="relative flex-shrink-0">
-              {user?.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.username || ''}
-                  className={`w-6 h-6 rounded-full object-cover ${
+          {isAuthenticated ? (
+            <Link
+              to="/profile"
+              className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 font-medium ${
+                isActiveRoute('/profile')
+                  ? 'text-indigo-600 bg-indigo-50 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+              title="Trang cá nhân"
+            >
+              <div className="relative flex-shrink-0">
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.username || ''}
+                    className={`w-6 h-6 rounded-full object-cover ${
+                      isActiveRoute('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
+                    }`}
+                  />
+                ) : (
+                  <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[10px] font-bold flex items-center justify-center ${
                     isActiveRoute('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
-                  }`}
-                />
-              ) : (
-                <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[10px] font-bold flex items-center justify-center ${
-                  isActiveRoute('/profile') ? 'ring-2 ring-indigo-600 ring-offset-1' : ''
-                }`}>
-                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                </div>
-              )}
-            </div>
-            <span className="hidden xl:block text-sm leading-none">Trang cá nhân</span>
-          </Link>
+                  }`}>
+                    {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                )}
+              </div>
+              <span className="hidden xl:block text-sm leading-none">Trang cá nhân</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleRequireAuth('Trang cá nhân')}
+              className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
+              title="Trang cá nhân"
+            >
+              <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0">
+                <User size={14} />
+              </div>
+              <span className="hidden xl:block text-sm leading-none">Trang cá nhân</span>
+            </button>
+          )}
         </nav>
       </div>
 
-      {/* More Menu */}
-      <div className="relative" ref={moreRef}>
-        <button
-          type="button"
-          onClick={() => setShowMore((v) => !v)}
-          className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
-        >
-          <Menu size={22} className="flex-shrink-0 stroke-[1.75]" />
-          <span className="hidden xl:block text-sm leading-none">Xem thêm</span>
-        </button>
+      {/* Bottom Area: Auth Buttons (Guest) or More Menu (Member) */}
+      {isAuthenticated ? (
+        <div className="relative" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
+          >
+            <Menu size={22} className="flex-shrink-0 stroke-[1.75]" />
+            <span className="hidden xl:block text-sm leading-none">Xem thêm</span>
+          </button>
 
-        <AnimatePresence>
-          {showMore && (
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.97 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="absolute bottom-14 left-0 w-60 bg-white rounded-2xl shadow-dropdown border border-slate-200 p-1.5 z-50"
-            >
-              <Link
-                to="/saved-posts"
-                onClick={() => setShowMore(false)}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
+          <AnimatePresence>
+            {showMore && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="absolute bottom-14 left-0 w-60 bg-white rounded-2xl shadow-dropdown border border-slate-200 p-1.5 z-50"
               >
-                <Bookmark size={16} className="text-slate-500" />
-                Đã lưu
-              </Link>
-              <Link
-                to="/edit-profile"
-                onClick={() => setShowMore(false)}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
-              >
-                <Settings size={16} className="text-slate-500" />
-                Cài đặt
-              </Link>
-
-              {isAdmin && (
                 <Link
-                  to="/admin"
+                  to="/saved-posts"
                   onClick={() => setShowMore(false)}
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-indigo-50 transition text-sm text-indigo-700 font-medium"
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
                 >
-                  <Shield size={16} className="text-indigo-500" />
-                  Quản trị hệ thống
+                  <Bookmark size={16} className="text-slate-500" />
+                  Đã lưu
                 </Link>
-              )}
+                <Link
+                  to="/edit-profile"
+                  onClick={() => setShowMore(false)}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm text-slate-700 font-medium"
+                >
+                  <Settings size={16} className="text-slate-500" />
+                  Cài đặt
+                </Link>
 
-              <hr className="my-1 border-slate-100" />
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setShowMore(false)}
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-indigo-50 transition text-sm text-indigo-700 font-medium"
+                  >
+                    <Shield size={16} className="text-indigo-500" />
+                    Quản trị hệ thống
+                  </Link>
+                )}
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-red-50 transition text-sm text-red-600 font-medium cursor-pointer"
-              >
-                <LogOut size={16} />
-                Đăng xuất
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                <hr className="my-1 border-slate-100" />
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-red-50 transition text-sm text-red-600 font-medium cursor-pointer"
+                >
+                  <LogOut size={16} />
+                  Đăng xuất
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="space-y-2 pt-3 border-t border-slate-100">
+          <Link
+            to="/login"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-sm group"
+            title="Đăng nhập"
+          >
+            <LogIn size={18} className="flex-shrink-0 group-hover:scale-105 transition-transform" />
+            <span className="hidden xl:inline leading-none">Đăng nhập</span>
+          </Link>
+          <Link
+            to="/register"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-slate-100 font-medium text-xs transition group"
+            title="Đăng ký"
+          >
+            <UserPlus size={16} className="flex-shrink-0 group-hover:scale-105 transition-transform" />
+            <span className="hidden xl:inline leading-none">Đăng ký</span>
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

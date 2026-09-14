@@ -1,4 +1,15 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
+
+// Debounced auth toast to avoid spamming multiple toasts on concurrent 401s
+let lastAuthToastTime = 0;
+const showAuthToast = () => {
+  const now = Date.now();
+  if (now - lastAuthToastTime > 3000) {
+    lastAuthToastTime = now;
+    toast.error('Vui lòng đăng nhập để tiếp tục');
+  }
+};
 
 // Get base URL from environment variables or default
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
@@ -86,6 +97,7 @@ axiosClient.interceptors.response.use(
         processQueue(new Error('No refresh token available'), null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        showAuthToast();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
@@ -119,6 +131,7 @@ axiosClient.interceptors.response.use(
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
 
+        showAuthToast();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }

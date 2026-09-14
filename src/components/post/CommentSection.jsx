@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import commentService from '../../services/commentService';
 import commentReactionService from '../../services/commentReactionService';
 import { useUser } from '../../contexts/UserContext';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Send,
@@ -28,6 +29,8 @@ function SingleComment({
   onReplyClick,
 }) {
   const { user } = useUser();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const commentId = comment.commentId || comment.id;
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(false);
@@ -48,6 +51,11 @@ function SingleComment({
   const isPostAuthor = !!(postAuthorId && commentUid && Number(postAuthorId) === Number(commentUid));
 
   const fetchReplies = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để xem phản hồi');
+      navigate('/login');
+      return;
+    }
     setLoadingReplies(true);
     try {
       const res = await commentService.getReplies(commentId, 0, 20);
@@ -63,6 +71,11 @@ function SingleComment({
 
   const handleSelectReaction = async (type) => {
     setShowPicker(false);
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để bày tỏ cảm xúc');
+      navigate('/login');
+      return;
+    }
     try {
       if (myReaction === type) {
         await commentReactionService.removeReaction(commentId);
@@ -324,6 +337,8 @@ function SingleComment({
 
 export default function CommentSection({ postId, postAuthorId, onCommentCountChange }) {
   const { user } = useUser();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [replyTarget, setReplyTarget] = useState(null);
@@ -349,6 +364,11 @@ export default function CommentSection({ postId, postAuthorId, onCommentCountCha
   };
 
   const handleReplyClick = (targetComment) => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để trả lời bình luận');
+      navigate('/login');
+      return;
+    }
     setReplyTarget(targetComment);
     const targetUsername = targetComment.username || targetComment.authorName || '';
     setNewComment(`@${targetUsername} `);
@@ -358,6 +378,11 @@ export default function CommentSection({ postId, postAuthorId, onCommentCountCha
   };
 
   const handleAddEmoji = (emoji) => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để bình luận');
+      navigate('/login');
+      return;
+    }
     setNewComment((prev) => prev + emoji);
     if (inputRef.current) {
       inputRef.current.focus();
@@ -366,6 +391,11 @@ export default function CommentSection({ postId, postAuthorId, onCommentCountCha
 
   const handleCreateComment = async (e) => {
     if (e) e.preventDefault();
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để bình luận');
+      navigate('/login');
+      return;
+    }
     if (!newComment.trim() || submitting) return;
 
     setSubmitting(true);

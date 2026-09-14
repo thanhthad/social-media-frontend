@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass,
@@ -12,11 +12,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import reelService from '../services/reelService';
 import ReelPlayer from '../components/reel/ReelPlayer';
 import CreateReelModal from '../components/reel/CreateReelModal';
 
 export default function ReelsPage() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const targetReelId = searchParams.get('reelId');
 
@@ -40,7 +43,7 @@ export default function ReelsPage() {
       try {
         let content = [];
 
-        // If targetReelId is provided in URL, fetch it first
+        // If targetReelId is provided in URL, fetch it first (if authenticated or public)
         if (targetReelId && isReset && pageNum === 0) {
           try {
             const specificRes = await reelService.getReelById(Number(targetReelId));
@@ -53,10 +56,15 @@ export default function ReelsPage() {
           }
         }
 
-        const res =
-          activeTab === 'explore'
-            ? await reelService.getReelExplore(pageNum, 10)
-            : await reelService.getReelFeed(pageNum, 10);
+        let res;
+        if (!isAuthenticated) {
+          res = await reelService.getPublicReelFeed(pageNum, 10);
+        } else {
+          res =
+            activeTab === 'explore'
+              ? await reelService.getReelExplore(pageNum, 10)
+              : await reelService.getReelFeed(pageNum, 10);
+        }
 
         const fetchedData = res.data?.data?.content || res.data?.data || [];
 
@@ -155,6 +163,24 @@ export default function ReelsPage() {
     }
   };
 
+  const handleTabChange = (tab) => {
+    if (!isAuthenticated && tab === 'feed') {
+      toast.error('Vui lòng đăng nhập để xem Reels từ bạn bè');
+      navigate('/login');
+      return;
+    }
+    setActiveTab(tab);
+  };
+
+  const handleCreateReel = () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để tạo Reel');
+      navigate('/login');
+      return;
+    }
+    setShowCreateModal(true);
+  };
+
   const handleReelDeleted = (deletedReelId) => {
     setReels((prev) => prev.filter((r) => r.id !== deletedReelId));
   };
@@ -170,7 +196,7 @@ export default function ReelsPage() {
         {/* Tab switch */}
         <div className="flex bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-1">
           <button
-            onClick={() => setActiveTab('explore')}
+            onClick={() => handleTabChange('explore')}
             className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'explore'
                 ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-sm'
@@ -182,7 +208,7 @@ export default function ReelsPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('feed')}
+            onClick={() => handleTabChange('feed')}
             className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'feed'
                 ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-sm'
@@ -196,7 +222,7 @@ export default function ReelsPage() {
 
         {/* Create Reel Button */}
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleCreateReel}
           className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 text-white rounded-2xl text-xs font-bold shadow-xs hover:shadow-md transition transform active:scale-95 cursor-pointer"
         >
           <Plus size={16} strokeWidth={2.5} />
@@ -251,7 +277,7 @@ export default function ReelsPage() {
                 </p>
               </div>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={handleCreateReel}
                 className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-2xl text-xs font-bold shadow-md hover:shadow-lg transition"
               >
                 + Đăng Reel ngay
