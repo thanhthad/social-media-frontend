@@ -1,321 +1,303 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import postService from '../services/postService';
-import hashtagService from '../services/hashtagService';
-import CreatePostForm from '../components/post/CreatePostForm';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import StorySection from '../components/story/StorySection';
+import CreateStoryModal from '../components/story/CreateStoryModal';
+import CreatePostCard from '../components/post/CreatePostCard';
+import CreatePostModal from '../components/post/CreatePostModal';
 import PostCard from '../components/post/PostCard';
-import StoryBar from '../components/story/StoryBar';
-import FriendSuggestions from '../components/friend/FriendSuggestions';
-import PendingFriendRequests from '../components/friend/PendingFriendRequests';
-import { PostSkeleton } from '../components/ui/Skeleton';
-import EmptyState from '../components/ui/EmptyState';
-import { useUser } from '../contexts/UserContext';
+import LoginPromptModal from '../components/common/LoginPromptModal';
+import Tabs from '../components/ui/Tabs';
+import { Sparkles, Users, Bookmark, RefreshCw, LogIn, UserPlus, Film, Flame, Lock } from 'lucide-react';
+import postService from '../services/postService';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  Sparkles,
-  Compass,
-  Users,
-  Search,
-  TrendingUp,
-  LogIn,
-} from 'lucide-react';
 
-const HomePage = () => {
-  const { user } = useUser();
+export const HomePage = () => {
   const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('for-you'); // 'for-you' | 'following' | 'saved'
   const [posts, setPosts] = useState([]);
-  const [trendingTags, setTrendingTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'explore'
-  const loadMoreRef = useRef(null);
+  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
+  const [loginPromptState, setLoginPromptState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchTrending();
+  const openLoginPrompt = (title, message) => {
+    setLoginPromptState({
+      isOpen: true,
+      title: title || 'Tham gia cùng cộng đồng SocialDB',
+      message: message || 'Bạn cần đăng nhập để sử dụng tính năng này.',
+    });
+  };
+
+  const closeLoginPrompt = () => {
+    setLoginPromptState((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const tabs = [
+    { id: 'for-you', label: isAuthenticated ? 'Dành cho bạn (Khám phá)' : 'Bảng tin công khai', icon: Sparkles },
+    { id: 'following', label: isAuthenticated ? 'Đang theo dõi (Bạn bè)' : 'Đang theo dõi 🔒', icon: Users },
+    { id: 'saved', label: isAuthenticated ? 'Đã lưu' : 'Đã lưu 🔒', icon: Bookmark },
+  ];
+
+  const handleTabChange = (newTab) => {
+    if (!isAuthenticated && (newTab === 'following' || newTab === 'saved')) {
+      openLoginPrompt(
+        newTab === 'following' ? 'Bảng tin theo dõi' : 'Bài viết đã lưu',
+        newTab === 'following'
+          ? 'Đăng nhập để xem cập nhật mới nhất từ bạn bè và người bạn đang theo dõi.'
+          : 'Đăng nhập để lưu và xem lại những bài viết bạn yêu thích.'
+      );
+      return;
+    }
+    setActiveTab(newTab);
+  };
+
+  const fetchFeed = useCallback(async (tab, pageNum = 0, append = false) => {
+    setLoading(true);
+    try {
+      let res;
+      if (tab === 'following') {
+        res = await postService.getFeed(pageNum, 15);
+      } else if (tab === 'saved') {
+        res = await postService.getSavedPosts(pageNum, 15);
+      } else {
+        // 'for-you'
+        res = isAuthenticated
+          ? await postService.getExplore(pageNum, 15)
+          : await postService.getPublicFeed(pageNum, 15);
+      }
+
+      const data = res.data?.data?.content || res.data?.data || [];
+      const list = Array.isArray(data) ? data : [];
+
+      if (append) {
+        setPosts((prev) => [...prev, ...list]);
+      } else {
+        setPosts(list);
+      }
+
+      setHasMore(list.length >= 15);
+    } catch (err) {
+      console.warn('Failed to load posts feed:', err?.message);
+      if (!append) setPosts([]);
+    } finally {
+      setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    fetchPosts(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isAuthenticated]);
+    setPage(0);
+    fetchFeed(activeTab, 0, false);
+  }, [activeTab, fetchFeed]);
 
-  const fetchTrending = async () => {
-    try {
-      const res = await hashtagService.getTrending(5);
-      if (res.data?.data) setTrendingTags(res.data.data);
-    } catch (err) {
-      // silently ignore trending tags failure
-    }
+  const handleRefresh = () => {
+    setPage(0);
+    fetchFeed(activeTab, 0, false);
   };
 
-  const fetchPosts = async (pageNum = 0, isReset = false) => {
-    setLoading(true);
-    try {
-      let res;
-      if (!isAuthenticated) {
-        res = await postService.getPublicFeed(pageNum, 10);
-      } else {
-        res =
-          activeTab === 'feed'
-            ? await postService.getFeed(pageNum, 10)
-            : await postService.getExplore(pageNum, 10);
-      }
-
-      const content = res.data?.data?.content || res.data?.data || [];
-      if (isReset) {
-        setPosts(content);
-      } else {
-        setPosts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          return [...prev, ...content.filter((p) => !existingIds.has(p.id))];
-        });
-      }
-      setPage(pageNum);
-      setHasMore(content.length === 10);
-    } catch (err) {
-      // silently handle
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMore = () => {
-    if (loading || !hasMore) return;
-    fetchPosts(page + 1, false);
-  };
-
-  const handleTabChange = (tab) => {
-    if (!isAuthenticated && tab === 'explore') {
-      toast.error('Vui lòng đăng nhập để xem trang Khám phá');
-      navigate('/login');
-      return;
-    }
-    setActiveTab(tab);
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchFeed(activeTab, nextPage, true);
   };
 
   const handlePostCreated = () => {
-    if (activeTab === 'feed') fetchPosts(0, true);
-    else setActiveTab('feed');
+    handleRefresh();
   };
 
-  const handlePostDeleted = (postId) => {
-    setPosts((prev) => prev.filter((post) => post.id !== postId));
+  const handlePostDeleted = (deletedId) => {
+    setPosts((prev) => prev.filter((p) => (p.id || p.postId) !== deletedId));
+  };
+
+  const handleOpenCreateStory = () => {
+    if (!isAuthenticated) {
+      openLoginPrompt('Tạo tin mới 24h', 'Đăng nhập để tạo tin 24h với ảnh, video và hiệu ứng độc đáo.');
+      return;
+    }
+    setIsCreateStoryOpen(true);
+  };
+
+  const handleOpenCreatePost = () => {
+    if (!isAuthenticated) {
+      openLoginPrompt('Đăng bài viết mới', 'Đăng nhập để chia sẻ suy nghĩ, ảnh, video và cảm xúc với mọi người.');
+      return;
+    }
+    setIsCreatePostOpen(true);
   };
 
   return (
-    <div className="max-w-5xl mx-auto flex justify-center gap-8 items-start pt-2 sm:pt-4 pb-4">
-      {/* ── Center Feed Column ── */}
-      <div className="w-full max-w-[600px] flex-1 min-w-0 space-y-3">
-        {/* Story Bar (Only for logged in users) */}
-        {isAuthenticated && <StoryBar />}
+    <div className="w-full">
+      {/* 1. Guest Welcome Hero Banner (Only when NOT logged in) */}
+      {!isAuthenticated && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 rounded-3xl p-6 sm:p-7 text-white shadow-xl shadow-indigo-500/15 mb-6 border border-indigo-400/20"
+        >
+          {/* Background Decorative Circles */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/20 rounded-full blur-xl pointer-events-none" />
 
-        {/* Feed Tabs — minimal pill style */}
-        <div className="flex bg-white rounded-2xl border border-slate-200 p-1 shadow-xs">
-          <button
-            onClick={() => handleTabChange('feed')}
-            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'feed'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Sparkles size={13} />
-            Dành cho bạn
-          </button>
-          <button
-            onClick={() => handleTabChange('explore')}
-            className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'explore'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Compass size={13} />
-            Khám phá
-          </button>
-        </div>
-
-        {/* Create Post form (for member) or Guest Prompt (for guest) */}
-        {activeTab === 'feed' && (
-          isAuthenticated ? (
-            <CreatePostForm onPostCreated={handlePostCreated} />
-          ) : (
-            <div
-              onClick={() => {
-                toast.error('Vui lòng đăng nhập để tạo bài viết');
-                navigate('/login');
-              }}
-              className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-card flex items-center gap-3 cursor-pointer hover:border-indigo-300 hover:shadow-card-hover transition-all"
-            >
-              <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                <LogIn size={18} />
-              </div>
-              <div className="flex-1 bg-slate-50 text-slate-500 px-4 py-2 rounded-xl text-xs font-medium">
-                Đăng nhập để chia sẻ suy nghĩ và kết nối với bạn bè...
-              </div>
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-indigo-100 mb-3.5 border border-white/10">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Chế độ khách • Khám phá bài viết & Reels tự do</span>
             </div>
-          )
-        )}
 
-        {/* Posts */}
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onPostDeleted={handlePostDeleted}
-              onPostUpdated={() => fetchPosts(0, true)}
-            />
-          ))}
-        </div>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-2 leading-tight">
+              Chào mừng bạn đến với SocialDB Network ✨
+            </h2>
 
-        {/* Loading Skeletons */}
-        {loading && (
-          <div className="space-y-3">
-            <PostSkeleton />
-            <PostSkeleton />
-          </div>
-        )}
-
-        {/* Load More */}
-        {!loading && hasMore && posts.length > 0 && (
-          <button
-            onClick={loadMore}
-            className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-indigo-600 font-semibold hover:bg-slate-50 text-xs shadow-xs transition active:scale-[0.99] cursor-pointer"
-          >
-            Tải thêm bài viết
-          </button>
-        )}
-
-        {/* End of feed */}
-        {!loading && !hasMore && posts.length > 0 && (
-          <p className="text-center py-6 text-xs text-slate-400 font-medium">
-            ✦ Bạn đã xem hết bài viết mới nhất
-          </p>
-        )}
-
-        {/* Empty State */}
-        {!loading && posts.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-card">
-            <EmptyState
-              icon={<Users size={28} />}
-              title={activeTab === 'feed' ? 'Bảng tin đang trống' : 'Chưa có bài viết nào'}
-              description={
-                activeTab === 'feed'
-                  ? (isAuthenticated ? 'Hãy kết bạn hoặc theo dõi thêm người dùng để xem bài viết của họ.' : 'Chưa có bài viết công khai nào.')
-                  : 'Chưa có bài viết để khám phá. Hãy quay lại sau.'
-              }
-              action={
-                activeTab === 'feed' && isAuthenticated
-                  ? { label: 'Tìm bạn bè', onClick: () => navigate('/friends') }
-                  : (!isAuthenticated ? { label: 'Đăng nhập', onClick: () => navigate('/login') } : undefined)
-              }
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ── Right Sidebar (Desktop only) ── */}
-      <div className="hidden lg:block w-[300px] shrink-0 sticky top-5 space-y-4">
-        {/* Current User Card (or Guest Welcome Card) */}
-        {isAuthenticated ? (
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card">
-            <Link to="/profile" className="flex items-center gap-3 group">
-              {user?.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-11 h-11 rounded-full object-cover border-2 border-slate-200 group-hover:border-indigo-300 transition-colors flex-shrink-0"
-                />
-              ) : (
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
-                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
-                  {user?.fullName || user?.username}
-                </p>
-                <p className="text-xs text-slate-400 truncate">@{user?.username}</p>
-              </div>
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-card space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white shadow-xs">
-                <Sparkles size={16} />
-              </div>
-              <h3 className="font-bold text-slate-900 text-sm">VibeSocial</h3>
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Đăng nhập để chia sẻ bài viết, tương tác Reels, theo dõi bạn bè và trò chuyện trực tiếp!
+            <p className="text-xs sm:text-sm text-indigo-100/90 leading-relaxed max-w-xl mb-5">
+              Bạn đang xem các bài viết công khai. Hãy tạo tài khoản ngay để thả cảm xúc, bình luận, kết bạn và sáng tạo video ngắn Reels không giới hạn!
             </p>
-            <div className="space-y-2 pt-1">
-              <Link
-                to="/login"
-                className="w-full flex items-center justify-center py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-              >
-                Đăng nhập ngay
-              </Link>
+
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 to="/register"
-                className="w-full flex items-center justify-center py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+                className="px-5 py-2.5 rounded-2xl bg-white text-indigo-700 hover:bg-indigo-50 font-bold text-xs sm:text-sm shadow-md transition active:scale-95 flex items-center gap-2"
               >
-                Đăng ký tài khoản
+                <UserPlus className="w-4 h-4" />
+                <span>Đăng ký miễn phí</span>
+              </Link>
+              <Link
+                to="/login"
+                className="px-5 py-2.5 rounded-2xl bg-indigo-500/40 hover:bg-indigo-500/60 border border-white/20 text-white font-semibold text-xs sm:text-sm backdrop-blur-md transition active:scale-95 flex items-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Đăng nhập</span>
+              </Link>
+              <Link
+                to="/reels"
+                className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-indigo-100 font-semibold text-xs sm:text-sm transition flex items-center gap-1.5"
+              >
+                <Film className="w-4 h-4 text-rose-300" />
+                <span>Xem Reels Video</span>
               </Link>
             </div>
           </div>
-        )}
+        </motion.div>
+      )}
 
-        {/* Pending Friend Requests & Suggestions (Authenticated Only) */}
-        {isAuthenticated && (
-          <>
-            <PendingFriendRequests isWidget={true} limit={3} />
-            <FriendSuggestions />
-          </>
-        )}
+      {/* 2. Horizontal Stories Carousel (Shown for all, guest gets prompt on create) */}
+      <StorySection onOpenCreateStory={handleOpenCreateStory} />
 
-        {/* Trending Hashtags (Authenticated Only) */}
-        {isAuthenticated && trendingTags.length > 0 && (
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-card space-y-3">
-            <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
-              <TrendingUp size={14} className="text-indigo-500" />
-              Xu hướng
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {trendingTags.map((tag) => (
-                <Link
-                  key={tag.name || tag}
-                  to={`/search?q=${encodeURIComponent(tag.name || tag)}&type=tag`}
-                  className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-full hover:bg-indigo-100 transition-colors"
-                >
-                  #{tag.name || tag}
-                </Link>
-              ))}
+      {/* 3. Create Post Trigger */}
+      {isAuthenticated ? (
+        <CreatePostCard onOpenCreateModal={handleOpenCreatePost} />
+      ) : (
+        <div
+          onClick={handleOpenCreatePost}
+          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 rounded-2xl p-4 shadow-xs mb-6 cursor-pointer transition group select-none"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+              ?
+            </div>
+            <div className="flex-1 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 text-sm font-medium transition flex items-center justify-between">
+              <span>Bạn đang nghĩ gì? Đăng nhập để chia sẻ bài viết...</span>
+              <span className="text-xs bg-indigo-600 text-white px-2.5 py-1 rounded-full font-semibold hidden sm:inline">
+                Đăng bài
+              </span>
             </div>
           </div>
-        )}
-
-        {/* Footer Links */}
-        <div className="text-[11px] text-slate-400 leading-loose px-1">
-          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
-            {['Giới thiệu', 'Trợ giúp', 'Quyền riêng tư', 'Điều khoản'].map((item) => (
-              <span key={item} className="hover:text-slate-600 cursor-pointer transition-colors">
-                {item}
-              </span>
-            ))}
-          </div>
-          <p className="mt-1 text-slate-300 uppercase tracking-wide font-medium text-[10px]">
-            © {new Date().getFullYear()} VibeSocial
-          </p>
         </div>
+      )}
+
+      {/* 4. Feed Navigation Tabs */}
+      <div className="flex items-center justify-between mb-5">
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          variant="pills"
+        />
+        <button
+          onClick={handleRefresh}
+          className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+          title="Làm mới bảng tin"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
+        </button>
       </div>
+
+      {/* 5. Posts Feed Stream */}
+      <div className="space-y-4">
+        {loading && posts.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-10 text-center shadow-xs">
+            <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin mx-auto mb-3" />
+            <p className="text-xs text-slate-400">Đang tải bảng tin...</p>
+          </div>
+        ) : posts.length > 0 ? (
+          <>
+            {posts.map((post) => (
+              <PostCard
+                key={post.id || post.postId}
+                post={post}
+                onPostDeleted={() => handlePostDeleted(post.id || post.postId)}
+              />
+            ))}
+            {hasMore && (
+              <div className="pt-2 pb-6 text-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className="px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-xs disabled:opacity-50"
+                >
+                  {loading ? 'Đang tải thêm...' : 'Tải thêm bài viết'}
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-10 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 stroke-[1.8]" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+              Chưa có bài viết nào
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-4">
+              {isAuthenticated
+                ? 'Hãy tạo bài viết đầu tiên hoặc theo dõi thêm bạn bè để làm phong phú bảng tin!'
+                : 'Chưa có bài viết công khai nào được đăng gần đây. Hãy đăng ký tài khoản và là người đầu tiên!'}
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenCreatePost}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+            >
+              {isAuthenticated ? 'Tạo bài viết ngay' : 'Đăng bài viết đầu tiên'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <CreatePostModal
+        isOpen={isCreatePostOpen}
+        onClose={() => setIsCreatePostOpen(false)}
+        onPostCreated={handlePostCreated}
+      />
+
+      <CreateStoryModal
+        isOpen={isCreateStoryOpen}
+        onClose={() => setIsCreateStoryOpen(false)}
+      />
+
+      <LoginPromptModal
+        isOpen={loginPromptState.isOpen}
+        onClose={closeLoginPrompt}
+        title={loginPromptState.title}
+        message={loginPromptState.message}
+      />
     </div>
   );
 };

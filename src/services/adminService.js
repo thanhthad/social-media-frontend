@@ -43,6 +43,16 @@ const adminService = {
     const reportStatus = status === 'RESOLVED' || status === 'APPROVED' ? 'APPROVED' : 'REJECTED';
     return axiosClient.patch(`/reports/${reportId}`, { reportStatus });
   },
+
+  // ================= DATING REPORTS MODERATION =================
+  getAllDatingReports: (page = 0, size = 10) =>
+    axiosClient.get('/dating/reports', { params: { page, size } }),
+
+  getDatingReportsByStatus: (status, page = 0, size = 10) =>
+    axiosClient.get(`/dating/reports/status/${status}`, { params: { page, size } }),
+
+  reviewDatingReport: (reportId, reportStatus) =>
+    axiosClient.patch(`/dating/reports/${reportId}/review`, { reportStatus }),
 };
 
 export default adminService;

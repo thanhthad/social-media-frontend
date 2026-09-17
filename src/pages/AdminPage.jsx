@@ -8,16 +8,19 @@ import {
   UserCheck,
   UserX,
   Shield,
+  Heart,
 } from 'lucide-react';
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'reports'
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'reports' | 'dating_reports'
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
+  const [datingReports, setDatingReports] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchUserQuery, setSearchUserQuery] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState('');
   const [reportStatusFilter, setReportStatusFilter] = useState('');
+  const [datingReportStatusFilter, setDatingReportStatusFilter] = useState('');
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -49,13 +52,40 @@ export default function AdminPage() {
     }
   }, [reportStatusFilter]);
 
+  const fetchDatingReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = datingReportStatusFilter
+        ? await adminService.getDatingReportsByStatus(datingReportStatusFilter, 0, 50)
+        : await adminService.getAllDatingReports(0, 50);
+      const data = res.data?.data?.content || res.data?.data || [];
+      setDatingReports(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load dating reports', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [datingReportStatusFilter]);
+
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
-    } else {
+    } else if (activeTab === 'reports') {
       fetchReports();
+    } else if (activeTab === 'dating_reports') {
+      fetchDatingReports();
     }
-  }, [activeTab, fetchUsers, fetchReports]);
+  }, [activeTab, fetchUsers, fetchReports, fetchDatingReports]);
+
+  const handleReviewDatingReport = async (reportId, status) => {
+    try {
+      await adminService.reviewDatingReport(reportId, status);
+      toast.success(`Đã cập nhật trạng thái báo cáo hẹn hò thành ${status}`);
+      fetchDatingReports();
+    } catch (err) {
+      toast.error('Không thể duyệt báo cáo hẹn hò');
+    }
+  };
 
   const handleSearchUser = async (e) => {
     e.preventDefault();
@@ -149,6 +179,15 @@ export default function AdminPage() {
           >
             <Flag size={14} />
             Báo cáo vi phạm
+          </button>
+          <button
+            onClick={() => setActiveTab('dating_reports')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'dating_reports' ? 'bg-white text-gray-900 shadow-md' : 'text-white/80 hover:text-white'
+            }`}
+          >
+            <Heart size={14} className="text-rose-500 fill-rose-500" />
+            Báo cáo hẹn hò
           </button>
         </div>
       </div>
@@ -380,6 +419,103 @@ export default function AdminPage() {
             ) : (
               <p className="py-12 text-center text-xs text-gray-400">
                 Không có báo cáo vi phạm nào.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Dating Reports */}
+      {activeTab === 'dating_reports' && (
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-900">
+              Kiểm duyệt báo cáo Hẹn hò ({datingReports.length})
+            </h3>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 font-semibold">Bộ lọc:</label>
+              <select
+                value={datingReportStatusFilter}
+                onChange={(e) => setDatingReportStatusFilter(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="">Tất cả</option>
+                <option value="PENDING">Chờ xử lý (PENDING)</option>
+                <option value="APPROVED">Đã duyệt (APPROVED)</option>
+                <option value="REJECTED">Đã từ chối (REJECTED)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {loading ? (
+              <div className="py-12 flex justify-center">
+                <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : datingReports.length > 0 ? (
+              datingReports.map((rep) => {
+                const repId = rep.id || rep.reportId;
+                const currentStatus = rep.reportStatus || rep.status || 'PENDING';
+                return (
+                  <div
+                    key={repId}
+                    className="p-4 rounded-2xl border border-gray-100 hover:border-gray-200 transition space-y-2 bg-rose-50/20"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 bg-rose-100 text-rose-700 font-bold text-[10px] rounded-full border border-rose-200 flex items-center gap-1">
+                          <Heart size={10} className="fill-rose-600" />
+                          USER #{rep.targetUserId || rep.reportedUserId}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Người báo cáo: <strong className="text-gray-700">#{rep.reporterUserId || rep.userId || 'Ẩn danh'}</strong>
+                        </span>
+                      </div>
+
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          currentStatus === 'PENDING'
+                            ? 'bg-amber-100 text-amber-700'
+                            : currentStatus === 'APPROVED'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {currentStatus}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-gray-800 font-semibold">
+                      Lý do: <span className="text-rose-600 font-normal">{rep.reason || rep.reasonName || 'Vi phạm chính sách hẹn hò'}</span>
+                    </p>
+                    {rep.description && (
+                      <p className="text-xs text-gray-500 bg-white p-2.5 rounded-xl border border-gray-100">
+                        "{rep.description}"
+                      </p>
+                    )}
+
+                    {currentStatus === 'PENDING' && (
+                      <div className="pt-2 flex justify-end gap-2 border-t border-gray-100">
+                        <button
+                          onClick={() => handleReviewDatingReport(repId, 'REJECTED')}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition"
+                        >
+                          Từ chối
+                        </button>
+                        <button
+                          onClick={() => handleReviewDatingReport(repId, 'APPROVED')}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs transition"
+                        >
+                          Duyệt vi phạm hẹn hò
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="py-12 text-center text-xs text-gray-400">
+                Không có báo cáo hẹn hò nào.
               </p>
             )}
           </div>

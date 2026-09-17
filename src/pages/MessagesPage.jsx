@@ -1,320 +1,185 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Search,
+  Send,
+  Phone,
+  Video,
+  Image as ImageIcon,
+  ArrowLeft,
+  CheckCheck,
+  Plus,
+  Info,
+  Smile,
+  Trash2,
+  Reply,
+  X,
+  Users,
+  Heart,
+  MessageSquare,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useUser } from '../contexts/UserContext';
 import conversationService from '../services/conversationService';
 import messageService from '../services/messageService';
-import messageReactionService from '../services/messageReactionService';
-import conversationMemberService from '../services/conversationMemberService';
+import friendshipService from '../services/friendshipService';
 import useWebSocketStore from '../stores/useWebSocketStore';
 import CreateGroupModal from '../components/chat/CreateGroupModal';
-import GroupMembersModal from '../components/chat/GroupMembersModal';
 import ChatInfoSidebar from '../components/chat/ChatInfoSidebar';
+import GroupMembersModal from '../components/chat/GroupMembersModal';
 import MediaLightboxModal from '../components/chat/MediaLightboxModal';
 import MessageReactionUsersModal from '../components/chat/MessageReactionUsersModal';
 import ReactionPicker, { REACTION_ICONS } from '../components/post/ReactionPicker';
-import toast from 'react-hot-toast';
-import {
-  Users,
-  Send,
-  Image as ImageIcon,
-  Trash2,
-  Reply,
-  Smile,
-  X,
-  Info,
-  Search,
-  ArrowLeft,
-  Heart,
-  Sparkles,
-  Loader2,
-} from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
 
-export default function MessagesPage() {
-  const location = useLocation();
-  const { user: currentUser } = useUser();
+export const MessagesPage = () => {
+  const { user } = useUser();
+  const currentUserId = user?.id || user?.userId;
 
-  // Conversations State
+  // Conversations state
+  const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'DATING'
   const [conversations, setConversations] = useState([]);
-  const [activeConv, setActiveConv] = useState(location.state?.conversation || null);
-  const [loadingConv, setLoadingConv] = useState(true);
-  const [convSearchQuery, setConvSearchQuery] = useState('');
-  const [activeTabFilter, setActiveTabFilter] = useState('ALL'); // 'ALL' | 'UNREAD' | 'GROUP' | 'DATING'
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
 
-  // Messages State & Pagination
+  // Messages state
   const [messages, setMessages] = useState([]);
-  const [loadingMsgs, setLoadingMsgs] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreMsgs, setHasMoreMsgs] = useState(true);
-  const [page, setPage] = useState(0);
-
-  // Input & Reply & Media
-  const [inputText, setInputText] = useState(location.state?.initialText || '');
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messageInput, setMessageInput] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [sending, setSending] = useState(false);
 
-  // Sidebars & Modals
-  const [showInfoSidebar, setShowInfoSidebar] = useState(false);
+  // Modals & Panels
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showGroupMembers, setShowGroupMembers] = useState(false);
-  const [activeReactionPickerMsgId, setActiveReactionPickerMsgId] = useState(null);
-  const [selectedReactionMsgId, setSelectedReactionMsgId] = useState(null);
+  const [showChatInfo, setShowChatInfo] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [lightboxMedia, setLightboxMedia] = useState(null); // { url, type }
+  const [reactionUsersMsgId, setReactionUsersMsgId] = useState(null);
+  const [activeReactionPickerMsgId, setActiveReactionPickerMsgId] = useState(null);
 
-  const messagesContainerRef = useRef(null);
+  // Online / active friends
+  const [friends, setFriends] = useState([]);
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const wsMessages = useWebSocketStore((state) => state.messages);
-  const addReactionListener = useWebSocketStore((state) => state.addReactionListener);
-  const addConversationListener = useWebSocketStore((state) => state.addConversationListener);
 
-  const activeConvId = activeConv?.conversation_id || activeConv?.id;
-  const currentUid = currentUser?.id || currentUser?.userId;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  // 1. Fetch Conversations List
-  const fetchConversations = useCallback(
-    async (selectTargetId = null) => {
-      setLoadingConv(true);
-      try {
-        const res =
-          activeTabFilter === 'DATING'
-            ? await conversationService.getMyDatingConversations()
-            : await conversationService.getMyConversations();
+  // 1. Fetch Conversations
+  const fetchConversations = useCallback(async () => {
+    setLoadingConversations(true);
+    try {
+      const res =
+        activeTab === 'DATING'
+          ? await conversationService.getMyDatingConversations()
+          : await conversationService.getMyConversations();
+      const list = res.data?.data || [];
+      const convList = Array.isArray(list) ? list : [];
+      setConversations(convList);
 
-        const raw = res.data?.data?.content || res.data?.data || [];
-        const list = Array.isArray(raw) ? raw : [];
-
-        // Deduplicate conversations by conversation ID
-        const uniqueList = [];
-        const seenIds = new Set();
-        for (const c of list) {
-          const id = c.conversation_id || c.id;
-          if (id && !seenIds.has(id)) {
-            seenIds.add(id);
-            uniqueList.push(c);
-          }
-        }
-
-        setConversations(uniqueList);
-
-        // Handle navigation with state
-        if (selectTargetId) {
-          const found = uniqueList.find((c) => (c.conversation_id || c.id) === selectTargetId);
-          if (found) setActiveConv(found);
-        } else if (location.state?.conversation) {
-          const target = location.state.conversation;
-          const tId = target.conversation_id || target.id;
-          const found = uniqueList.find((c) => (c.conversation_id || c.id) === tId);
-          setActiveConv(found || target);
-        } else if (location.state?.conversationId) {
-          const found = uniqueList.find(
-            (c) => (c.conversation_id || c.id) === location.state.conversationId
+      // Keep or update active conversation
+      if (convList.length > 0) {
+        setActiveConversation((prev) => {
+          if (!prev) return convList[0];
+          const exists = convList.find(
+            (c) => (c.conversation_id || c.id) === (prev.conversation_id || prev.id)
           );
-          if (found) setActiveConv(found);
-        } else if (location.state?.targetUserId) {
-          // Auto open or create private conversation
-          const targetUserId = location.state.targetUserId;
-          const existing = list.find(
-            (c) => c.type === 'PRIVATE' && (c.user_id === targetUserId || c.userId === targetUserId)
-          );
-          if (existing) {
-            setActiveConv(existing);
-          } else {
-            try {
-              const createRes = await conversationService.createPrivate(targetUserId);
-              const newConv = createRes.data?.data || createRes.data;
-              if (newConv) {
-                const formatted = {
-                  ...newConv,
-                  conversation_id: newConv.id || newConv.conversation_id,
-                };
-                setConversations((prev) => [formatted, ...prev]);
-                setActiveConv(formatted);
-              }
-            } catch (e) {
-              console.error('Failed to create private chat for user', e);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load conversations', err);
-      } finally {
-        setLoadingConv(false);
+          return exists || convList[0];
+        });
+      } else {
+        setActiveConversation(null);
       }
-    },
-    [activeTabFilter, location.state]
-  );
+    } catch (err) {
+      console.error('Failed to fetch conversations', err);
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
-  // 2. Fetch Initial Messages & Conversation Detail when Active Conversation changes
+  // 2. Fetch Friends for Quick-Chat bar
   useEffect(() => {
-    if (!activeConvId) {
-      setMessages([]);
-      return;
-    }
-
-    setLoadingMsgs(true);
-    setPage(0);
-    setHasMoreMsgs(true);
-
-    // Fetch conversation detail to ensure latest members and metadata
-    conversationService
-      .getConversationDetail(activeConvId)
-      .then((detailRes) => {
-        const detail = detailRes.data?.data || detailRes.data;
-        if (detail) {
-          setActiveConv((prev) => ({
-            ...prev,
-            ...detail,
-            conversation_id: detail.id || detail.conversation_id,
-          }));
-        }
-      })
-      .catch((err) => {
-        console.log('Could not load extra conversation detail', err);
-      });
-
-    messageService
-      .getMessages(activeConvId, 0, 30)
-      .then((res) => {
-        const pageData = res.data?.data;
-        const msgs = pageData?.content || (Array.isArray(pageData) ? pageData : []);
-        setMessages([...msgs].reverse());
-        setHasMoreMsgs(pageData?.last === false || msgs.length === 30);
-
-        // Mark last message as read
-        if (msgs.length > 0) {
-          const latest = msgs[0];
-          conversationMemberService
-            .updateLastReadMessage(activeConvId, latest.id)
-            .catch(() => {});
-        }
-
-        // Reset unread count for active conversation in list
-        setConversations((prev) =>
-          prev.map((c) =>
-            (c.conversation_id || c.id) === activeConvId ? { ...c, unreadCount: 0 } : c
-          )
-        );
-      })
-      .catch((err) => {
-        console.error('Failed to fetch messages', err);
-      })
-      .finally(() => {
-        setLoadingMsgs(false);
-      });
-  }, [activeConvId]);
-
-  // 3. Load More Older Messages (Pagination Scroll Up)
-  const handleLoadMoreMessages = async () => {
-    if (!activeConvId || loadingMore || !hasMoreMsgs) return;
-
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    const container = messagesContainerRef.current;
-    const previousScrollHeight = container ? container.scrollHeight : 0;
-
-    try {
-      const res = await messageService.getMessages(activeConvId, nextPage, 30);
-      const pageData = res.data?.data;
-      const msgs = pageData?.content || (Array.isArray(pageData) ? pageData : []);
-
-      if (msgs.length > 0) {
-        setMessages((prev) => [...[...msgs].reverse(), ...prev]);
-        setPage(nextPage);
-        setHasMoreMsgs(pageData?.last === false || msgs.length === 30);
-
-        // Preserve scroll position
-        setTimeout(() => {
-          if (container) {
-            container.scrollTop = container.scrollHeight - previousScrollHeight;
-          }
-        }, 50);
-      } else {
-        setHasMoreMsgs(false);
-      }
-    } catch (err) {
-      console.error('Failed to load more messages', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  // 4. Real-time STOMP WebSocket Message Handling
-  useEffect(() => {
-    if (wsMessages.length > 0) {
-      const latestMsg = wsMessages[wsMessages.length - 1];
-      const msgConvId = latestMsg.conversationId || latestMsg.conversation_id;
-
-      // Check if message belongs to currently active conversation
-      const isForActive =
-        (msgConvId && activeConvId && String(msgConvId) === String(activeConvId)) ||
-        (!msgConvId && activeConv && latestMsg.senderId === (activeConv.user_id || activeConv.userId));
-
-      if (isForActive) {
-        setMessages((prev) => {
-          if (!prev.some((m) => m.id === latestMsg.id)) {
-            return [...prev, latestMsg];
-          }
-          return prev;
-        });
-
-        // Mark read
-        if (activeConvId && latestMsg.id) {
-          conversationMemberService
-            .updateLastReadMessage(activeConvId, latestMsg.id)
-            .catch(() => {});
-        }
-      }
-
-      // Update conversations list latest preview
-      setConversations((prev) =>
-        prev.map((conv) => {
-          const cId = conv.conversation_id || conv.id;
-          const match =
-            (msgConvId && String(cId) === String(msgConvId)) ||
-            (!msgConvId && (conv.user_id === latestMsg.senderId || conv.userId === latestMsg.senderId));
-
-          if (match) {
-            return {
-              ...conv,
-              preview: latestMsg.content || 'Đã gửi một tệp đính kèm',
-              lastMessage: latestMsg.content || 'Đã gửi một tệp đính kèm',
-              lastMessageAt: latestMsg.createdAt || new Date().toISOString(),
-              unreadCount: isForActive ? 0 : (conv.unreadCount || 0) + 1,
-            };
-          }
-          return conv;
+    if (currentUserId) {
+      friendshipService
+        .getFriends(currentUserId, 0, 30)
+        .then((res) => {
+          const raw = res.data?.data?.content || res.data?.data || [];
+          setFriends(Array.isArray(raw) ? raw : []);
         })
-      );
+        .catch(() => {});
     }
-  }, [wsMessages, activeConvId, activeConv]);
+  }, [currentUserId]);
 
-  // Real-time Reaction & Conversation Listeners
+  // 3. Fetch Messages for Active Conversation
+  const convId = activeConversation?.conversation_id || activeConversation?.id;
+
+  const fetchMessages = useCallback(async (cId) => {
+    if (!cId) return;
+    setLoadingMessages(true);
+    try {
+      const res = await messageService.getMessages(cId, 0, 50);
+      const data = res.data?.data?.content || res.data?.data || [];
+      const list = Array.isArray(data) ? [...data].reverse() : [];
+      setMessages(list);
+    } catch (err) {
+      console.error('Failed to load messages', err);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const unsubReaction = addReactionListener((reaction) => {
-      const msgId = reaction.messageId || reaction.message_id;
+    if (convId) {
+      fetchMessages(convId);
+      setReplyingTo(null);
+      setSelectedFiles([]);
+    } else {
+      setMessages([]);
+    }
+  }, [convId, fetchMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // 4. WebSocket Listener for incoming messages & reactions
+  useEffect(() => {
+    const unsubMsg = useWebSocketStore.getState().addMessageListener((newMsg) => {
+      const targetConvId = newMsg.conversationId || newMsg.conversation_id;
+      if (targetConvId && String(targetConvId) === String(convId)) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+      }
+      fetchConversations();
+    });
+
+    const unsubReaction = useWebSocketStore.getState().addReactionListener((reaction) => {
+      const msgId = reaction.messageId;
       if (msgId) {
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id === msgId) {
-              const reactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
-              const uId = reaction.userId || reaction.user_id;
-              const existingIdx = reactions.findIndex((r) => (r.userId || r.user_id) === uId);
-              if (existingIdx >= 0) {
-                if (reaction.type) {
-                  reactions[existingIdx] = { ...reactions[existingIdx], ...reaction };
-                } else {
-                  reactions.splice(existingIdx, 1);
+              const currentCounts = { ...(m.counts || {}) };
+              if (reaction.action === 'REMOVE') {
+                if (currentCounts[reaction.type]) {
+                  currentCounts[reaction.type] = Math.max(0, currentCounts[reaction.type] - 1);
                 }
-              } else if (reaction.type) {
-                reactions.push(reaction);
+              } else {
+                currentCounts[reaction.type] = (currentCounts[reaction.type] || 0) + 1;
               }
-              return { ...m, reactions };
+              return {
+                ...m,
+                counts: currentCounts,
+                myReaction: reaction.userId === currentUserId ? reaction.type : m.myReaction,
+              };
             }
             return m;
           })
@@ -322,741 +187,688 @@ export default function MessagesPage() {
       }
     });
 
-    const unsubConv = addConversationListener((conv) => {
-      setConversations((prev) => {
-        const cId = conv.conversation_id || conv.id;
-        const exists = prev.some((c) => (c.conversation_id || c.id) === cId);
-        if (exists) {
-          return prev.map((c) => ((c.conversation_id || c.id) === cId ? { ...c, ...conv } : c));
-        } else {
-          return [conv, ...prev];
-        }
-      });
-    });
-
     return () => {
-      if (unsubReaction) unsubReaction();
-      if (unsubConv) unsubConv();
+      unsubMsg();
+      unsubReaction();
     };
-  }, [addReactionListener, addConversationListener]);
+  }, [convId, currentUserId, fetchConversations]);
 
-  // Auto scroll to bottom on new message
-  useEffect(() => {
-    if (page === 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, page]);
-
-  // 5. Send Message
-  const handleSendMessage = async (e) => {
-    if (e) e.preventDefault();
-    if ((!inputText.trim() && selectedFiles.length === 0) || !activeConvId || sending) return;
-
-    setSending(true);
-    const contentToSend = inputText.trim();
-    const filesToSend = [...selectedFiles];
-    const replyIdToSend = replyToMessage?.id || null;
-
-    // Clear input fields immediately for snappy UI
-    setInputText('');
-    setSelectedFiles([]);
-    setReplyToMessage(null);
-
+  // Start private conversation with a friend
+  const handleStartPrivate = async (friendUserId) => {
     try {
-      const sentRes = await messageService.sendMessage(
-        activeConvId,
-        contentToSend,
-        filesToSend,
-        replyIdToSend
-      );
-      const sentMsg = sentRes.data?.data || sentRes.data;
-
-      if (sentMsg) {
-        setMessages((prev) => {
-          if (!prev.some((m) => m.id === sentMsg.id)) {
-            return [...prev, sentMsg];
-          }
-          return prev;
-        });
-
-        // Update conversation list preview
-        setConversations((prev) =>
-          prev.map((c) =>
-            (c.conversation_id || c.id) === activeConvId
-              ? {
-                  ...c,
-                  preview: sentMsg.content || 'Đã gửi một tệp đính kèm',
-                  lastMessageAt: sentMsg.createdAt || new Date().toISOString(),
-                }
-              : c
-          )
-        );
+      const res = await conversationService.createPrivate(friendUserId);
+      const newConv = res.data?.data;
+      await fetchConversations();
+      if (newConv) {
+        setActiveConversation(newConv);
+        setMobileView('chat');
       }
     } catch (err) {
-      console.error('Failed to send message', err);
-      toast.error('Không thể gửi tin nhắn.');
+      toast.error('Không thể mở cuộc trò chuyện');
+    }
+  };
+
+  // Send Message
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if ((!messageInput.trim() && selectedFiles.length === 0) || !convId) return;
+
+    setSending(true);
+    try {
+      const res = await messageService.sendMessage(
+        convId,
+        messageInput.trim(),
+        selectedFiles,
+        replyingTo?.id || null
+      );
+      const sentMsg = res.data?.data;
+      if (sentMsg) {
+        setMessages((prev) => [...prev, sentMsg]);
+      } else {
+        fetchMessages(convId);
+      }
+      setMessageInput('');
+      setSelectedFiles([]);
+      setReplyingTo(null);
+      fetchConversations();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể gửi tin nhắn');
     } finally {
       setSending(false);
     }
   };
 
-  // 6. Delete Message
+  // React to Message
+  const handleReact = async (messageId, type) => {
+    try {
+      await messageService.reactToMessage(messageId, type);
+      setActiveReactionPickerMsgId(null);
+      fetchMessages(convId);
+    } catch (err) {
+      toast.error('Không thể bày tỏ cảm xúc');
+    }
+  };
+
+  // Delete Message
   const handleDeleteMessage = async (messageId) => {
-    if (window.confirm('Bạn có chắc muốn xóa tin nhắn này?')) {
-      try {
-        await messageService.deleteMessage(messageId);
-        setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        toast.success('Đã xóa tin nhắn');
-      } catch (err) {
-        toast.error('Không thể xóa tin nhắn');
-      }
-    }
-  };
-
-  // 7. React to Message
-  const handleReactToMessage = async (messageId, type) => {
-    setActiveReactionPickerMsgId(null);
+    if (!window.confirm('Bạn có chắc muốn xóa tin nhắn này?')) return;
     try {
-      await messageReactionService.reactToMessage(messageId, type);
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === messageId) {
-            const oldType = m.myReaction;
-            const newCounts = { ...(m.counts || {}) };
-
-            if (oldType && newCounts[oldType]) {
-              newCounts[oldType] = Math.max(0, Number(newCounts[oldType]) - 1);
-            }
-            newCounts[type] = (Number(newCounts[type]) || 0) + 1;
-
-            return {
-              ...m,
-              myReaction: type,
-              counts: newCounts,
-              totalReactions: (m.totalReactions || 0) + (oldType ? 0 : 1),
-            };
-          }
-          return m;
-        })
-      );
+      await messageService.deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      toast.success('Đã xóa tin nhắn');
     } catch (err) {
-      console.error('Failed to react to message', err);
+      toast.error('Không thể xóa tin nhắn');
     }
   };
 
-  // 8. Remove Reaction
-  const handleRemoveReaction = async (messageId) => {
-    try {
-      await messageService.removeReaction(messageId);
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === messageId) {
-            const oldType = m.myReaction;
-            const newCounts = { ...(m.counts || {}) };
-            if (oldType && newCounts[oldType]) {
-              newCounts[oldType] = Math.max(0, Number(newCounts[oldType]) - 1);
-            }
-            return {
-              ...m,
-              myReaction: null,
-              counts: newCounts,
-              totalReactions: Math.max(0, (m.totalReactions || 1) - 1),
-            };
-          }
-          return m;
-        })
-      );
-    } catch (err) {
-      console.error('Failed to remove reaction', err);
-    }
-  };
-
-  // File selection
+  // File Upload Handlers
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + selectedFiles.length > 10) {
-      toast.error('Tối đa 10 tệp mỗi tin nhắn');
+    if (files.length + selectedFiles.length > 5) {
+      toast.error('Tối đa 5 tệp mỗi tin nhắn');
       return;
     }
     setSelectedFiles((prev) => [...prev, ...files]);
   };
 
-  // Filter conversations list
-  const filteredConversations = conversations.filter((c) => {
-    const name = c.displayName || c.name || '';
-    const matchesSearch = name.toLowerCase().includes(convSearchQuery.toLowerCase());
+  const removeSelectedFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
-    if (!matchesSearch) return false;
+  // Filter conversations
+  const filteredConversations = conversations.filter((c) =>
+    (c.displayName || c.name || '')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
-    if (activeTabFilter === 'UNREAD') return (c.unreadCount || 0) > 0;
-    if (activeTabFilter === 'GROUP') return c.type === 'GROUP' || c.isGroup;
-    if (activeTabFilter === 'DATING') return c.type === 'DATING';
-
-    return true;
-  });
+  const activeName =
+    activeConversation?.displayName ||
+    activeConversation?.name ||
+    'Cuộc trò chuyện';
+  const activeAvatar =
+    activeConversation?.avatarUrl ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
 
   return (
-    <div className="h-full w-full max-w-7xl mx-auto p-1 sm:p-3 flex overflow-hidden">
-      <div className="w-full h-full bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200/80 flex overflow-hidden relative">
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* COLUMN 1: Conversations List */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        <div
-          className={`w-full md:w-80 lg:w-96 border-r border-gray-100 flex flex-col bg-gray-50/40 flex-shrink-0 ${
-            activeConv ? 'hidden md:flex' : 'flex'
-          }`}
-        >
-          {/* Header */}
-          <div className="p-4 px-5 border-b border-gray-100 bg-white flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">Đoạn Chat</h2>
-              <p className="text-[11px] font-semibold text-gray-400">
-                {conversations.length} cuộc trò chuyện
-              </p>
-            </div>
-
+    <div className="w-full h-[calc(100vh-7rem)] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs flex relative">
+      {/* LEFT COLUMN: Conversation List */}
+      <div
+        className={`w-full md:w-80 lg:w-96 border-r border-slate-200/80 dark:border-slate-800 flex flex-col shrink-0 ${
+          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        {/* Header & Tabs */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              Tin nhắn
+            </h2>
             <button
-              type="button"
               onClick={() => setShowCreateGroup(true)}
-              className="w-10 h-10 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition shadow-xs"
-              title="Tạo nhóm chat mới"
+              className="p-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold"
+              title="Tạo nhóm mới"
             >
-              <Users size={19} />
+              <Plus className="w-4 h-4" />
+              <span>Tạo nhóm</span>
             </button>
           </div>
 
-          {/* Search Bar */}
-          <div className="p-3 bg-white border-b border-gray-100">
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={convSearchQuery}
-                onChange={(e) => setConvSearchQuery(e.target.value)}
-                placeholder="Tìm đoạn chat..."
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-              />
-            </div>
-
-            {/* Filter Chips */}
-            <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto dating-scrollbar pb-1">
-              {[
-                { key: 'ALL', label: 'Tất cả' },
-                { key: 'UNREAD', label: 'Chưa đọc' },
-                { key: 'GROUP', label: 'Nhóm' },
-                { key: 'DATING', label: 'Hẹn hò ❤️' },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTabFilter(tab.key)}
-                  className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition ${
-                    activeTabFilter === tab.key
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          {/* Conversation Type Tabs */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('ALL')}
+              className={`flex-1 py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'ALL'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Tất cả
+            </button>
+            <button
+              onClick={() => setActiveTab('DATING')}
+              className={`flex-1 py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'DATING'
+                  ? 'bg-white dark:bg-slate-900 text-rose-500 shadow-xs'
+                  : 'text-slate-500 hover:text-rose-500'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5 fill-current" />
+              Hẹn hò
+            </button>
           </div>
 
-          {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto p-2.5 space-y-1 dating-scrollbar">
-            {loadingConv ? (
-              <div className="py-16 flex flex-col justify-center items-center gap-2">
-                <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-gray-400 font-semibold">Đang tải đoạn chat...</p>
-              </div>
-            ) : filteredConversations.length > 0 ? (
-              filteredConversations.map((conv) => {
-                const cId = conv.conversation_id || conv.id;
-                const isSelected = activeConvId === cId;
-                const isGroup = conv.type === 'GROUP' || conv.isGroup;
-                const isDating = conv.type === 'DATING';
-                const previewText = conv.preview || conv.lastMessage || 'Bắt đầu trò chuyện ngay...';
-                const unread = conv.unreadCount || 0;
-
-                return (
-                  <div
-                    key={cId}
-                    onClick={() => setActiveConv(conv)}
-                    className={`flex items-center gap-3.5 p-3 rounded-2xl cursor-pointer transition relative group ${
-                      isSelected
-                        ? 'bg-white shadow-sm ring-1 ring-blue-200 font-bold'
-                        : 'hover:bg-white/80 text-gray-700'
-                    }`}
-                  >
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <img
-                        src={conv.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
-                        alt=""
-                        className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-xs"
-                      />
-                      {isDating ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-gradient-to-tr from-pink-500 to-rose-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-xs">
-                          <Heart size={10} className="fill-current" />
-                        </span>
-                      ) : isGroup ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-xs">
-                          <Users size={10} />
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {/* Meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className="text-xs font-bold text-gray-900 truncate">
-                          {conv.displayName || conv.name || 'Cuộc trò chuyện'}
-                        </p>
-                        {conv.lastMessageAt && (
-                          <span className="text-[10px] text-gray-400 font-normal flex-shrink-0">
-                            {new Date(conv.lastMessageAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`text-[11px] truncate ${unread > 0 ? 'font-bold text-gray-900' : 'text-gray-400 font-normal'}`}>
-                          {previewText}
-                        </p>
-                        {unread > 0 && (
-                          <span className="px-1.5 py-0.2 bg-blue-600 text-white text-[10px] font-black rounded-full min-w-[18px] text-center shadow-xs flex-shrink-0">
-                            {unread}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="py-16 text-center text-xs text-gray-400 space-y-2">
-                <p className="font-semibold text-gray-600">Không tìm thấy đoạn chat nào</p>
-                <p className="text-[11px]">Hãy tạo nhóm mới hoặc bắt đầu trò chuyện từ hồ sơ bạn bè.</p>
-              </div>
-            )}
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 stroke-[1.8]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm tin nhắn..."
+              className="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600"
+            />
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* COLUMN 2: Chat Viewport */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        <div
-          className={`flex-1 flex flex-col bg-white h-full relative ${
-            !activeConv ? 'hidden md:flex' : 'flex'
-          }`}
-        >
-          {activeConv ? (
-            <>
-              {/* Chat Top Header Bar */}
-              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white/90 backdrop-blur-md shadow-xs z-10">
-                <div className="flex items-center gap-3">
-                  {/* Mobile Back Button */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveConv(null)}
-                    className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full md:hidden transition"
-                    title="Quay lại danh sách"
-                  >
-                    <ArrowLeft size={19} />
-                  </button>
-
+        {/* Quick Friends Strip */}
+        {friends.length > 0 && (
+          <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/80 overflow-x-auto no-scrollbar flex items-center gap-3">
+            {friends.map((f) => {
+              const friendId = f.userId || f.id;
+              const name = f.fullName || f.username || 'Bạn bè';
+              const avatar =
+                f.avatarUrl ||
+                f.avatar ||
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+              return (
+                <div
+                  key={friendId}
+                  onClick={() => handleStartPrivate(friendId)}
+                  className="flex flex-col items-center gap-1 shrink-0 cursor-pointer group"
+                  title={`Nhắn tin cho ${name}`}
+                >
                   <div className="relative">
                     <img
-                      src={activeConv.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
-                      alt=""
-                      className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-xs"
+                      src={avatar}
+                      alt={name}
+                      className="w-11 h-11 rounded-full object-cover ring-2 ring-transparent group-hover:ring-indigo-600 transition"
                     />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium max-w-[50px] truncate">
+                    {name.split(' ')[0]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100/60 dark:divide-slate-800/60">
+          {loadingConversations ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Đang tải danh sách tin nhắn...
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Chưa có cuộc trò chuyện nào
+            </div>
+          ) : (
+            filteredConversations.map((convo) => {
+              const cId = convo.conversation_id || convo.id;
+              const isActive =
+                (activeConversation?.conversation_id || activeConversation?.id) ===
+                cId;
+              const name = convo.displayName || convo.name || 'Người dùng';
+              const avatar =
+                convo.avatarUrl ||
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+
+              return (
+                <div
+                  key={cId}
+                  onClick={() => {
+                    setActiveConversation(convo);
+                    setMobileView('chat');
+                  }}
+                  className={`flex items-center gap-3 p-3.5 cursor-pointer transition select-none ${
+                    isActive
+                      ? 'bg-indigo-50/60 dark:bg-indigo-950/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="relative shrink-0">
+                    <img
+                      src={avatar}
+                      alt={name}
+                      className="w-12 h-12 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                    />
+                    {convo.type === 'GROUP' && (
+                      <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white p-0.5 rounded-full ring-2 ring-white dark:ring-slate-900">
+                        <Users className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                    {convo.type === 'DATING' && (
+                      <span className="absolute -bottom-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full ring-2 ring-white dark:ring-slate-900">
+                        <Heart className="w-2.5 h-2.5 fill-current" />
+                      </span>
+                    )}
                   </div>
 
-                  <div>
-                    <h3 className="font-black text-gray-900 text-sm leading-tight truncate max-w-[200px] sm:max-w-md">
-                      {activeConv.displayName || activeConv.name || 'Cuộc trò chuyện'}
-                    </h3>
-                    <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                      Đang hoạt động
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {name}
+                      </span>
+                      {convo.lastMessageAt && (
+                        <span className="text-[10px] text-slate-400 shrink-0">
+                          {new Date(convo.lastMessageAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {convo.preview || 'Bắt đầu cuộc trò chuyện...'}
                     </p>
                   </div>
-                </div>
 
-                {/* Top Action Icons */}
-                <div className="flex items-center gap-1.5">
-                  {(activeConv.type === 'GROUP' || activeConv.isGroup) && (
-                    <button
-                      type="button"
-                      onClick={() => setShowGroupMembers(true)}
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"
-                      title="Xem thành viên"
-                    >
-                      <Users size={18} />
-                    </button>
+                  {convo.unreadCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {convo.unreadCount}
+                    </span>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => setShowInfoSidebar(!showInfoSidebar)}
-                    className={`p-2 rounded-full transition ${
-                      showInfoSidebar
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                    title="Thông tin chi tiết"
-                  >
-                    <Info size={19} />
-                  </button>
                 </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: Active Chat Window */}
+      {activeConversation ? (
+        <div
+          className={`flex-1 flex flex-col bg-slate-50/30 dark:bg-slate-950/30 ${
+            mobileView === 'list' ? 'hidden md:flex' : 'flex'
+          }`}
+        >
+          {/* Header */}
+          <div className="h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileView('list')}
+                className="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-slate-800"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
+              <div className="relative">
+                <img
+                  src={activeAvatar}
+                  alt={activeName}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-800"
+                />
               </div>
 
-              {/* Messages Scroll Area */}
-              <div
-                ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50 dating-scrollbar"
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                  {activeName}
+                </h3>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  {activeConversation.type === 'GROUP'
+                    ? 'Nhóm chat'
+                    : activeConversation.type === 'DATING'
+                    ? 'Ghép đôi Hẹn hò'
+                    : 'Đang hoạt động'}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => toast('Tính năng gọi thoại đang trong bản thử nghiệm!')}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                title="Gọi thoại"
               >
-                {/* Load More Button if has older messages */}
-                {hasMoreMsgs && messages.length >= 30 && (
-                  <div className="flex justify-center py-2">
-                    <button
-                      type="button"
-                      onClick={handleLoadMoreMessages}
-                      disabled={loadingMore}
-                      className="px-4 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 rounded-full text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {loadingMore ? (
-                        <>
-                          <Loader2 size={13} className="animate-spin" />
-                          <span>Đang tải...</span>
-                        </>
-                      ) : (
-                        <span>Tải tin nhắn cũ hơn</span>
+                <Phone className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toast('Tính năng gọi video đang trong bản thử nghiệm!')}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                title="Gọi video"
+              >
+                <Video className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChatInfo(true)}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                title="Thông tin cuộc trò chuyện"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Stream */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {loadingMessages ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Đang tải tin nhắn...
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-xs">
+                Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const isMe =
+                  String(msg.senderId) === String(currentUserId) ||
+                  msg.sender_id === currentUserId;
+                const senderName = msg.senderName || msg.sender_name || 'Người dùng';
+                const avatar =
+                  msg.avatarUrl ||
+                  msg.avatar_url ||
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                const hasReactions =
+                  msg.totalReactions > 0 ||
+                  (msg.counts && Object.values(msg.counts).some((v) => v > 0));
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-end gap-2 group relative ${
+                      isMe ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {!isMe && (
+                      <img
+                        src={avatar}
+                        alt=""
+                        className="w-7 h-7 rounded-full object-cover shrink-0 mb-1"
+                        title={senderName}
+                      />
+                    )}
+
+                    <div className="max-w-[75%] sm:max-w-md flex flex-col relative">
+                      {/* Sender name for group chat */}
+                      {!isMe && activeConversation.type === 'GROUP' && (
+                        <span className="text-[10px] text-slate-500 mb-1 font-semibold ml-1">
+                          {senderName}
+                        </span>
                       )}
-                    </button>
-                  </div>
-                )}
 
-                {loadingMsgs ? (
-                  <div className="py-20 flex flex-col justify-center items-center gap-2">
-                    <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-xs text-gray-400 font-semibold">Đang tải tin nhắn...</p>
-                  </div>
-                ) : messages.length > 0 ? (
-                  messages.map((msg, index) => {
-                    const isMine = msg.senderId === currentUid;
-                    const myReact = msg.myReaction;
-                    const totalReactions = msg.totalReactions || 0;
-                    const counts = msg.counts || {};
+                      {/* Replying indicator */}
+                      {msg.replyToMessageId && (
+                        <div className="mb-1 text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-3 py-1 rounded-t-xl border-l-2 border-indigo-500 truncate">
+                          Trả lời tin nhắn #{msg.replyToMessageId}
+                        </div>
+                      )}
 
-                    return (
+                      {/* Bubble */}
                       <div
-                        key={msg.id || index}
-                        className={`flex items-end gap-2 group relative ${
-                          isMine ? 'flex-row-reverse' : 'flex-row'
+                        className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed relative ${
+                          isMe
+                            ? 'bg-indigo-600 text-white rounded-br-xs'
+                            : 'bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-slate-900 dark:text-white rounded-bl-xs shadow-xs'
                         }`}
                       >
-                        {!isMine && (
-                          <img
-                            src={msg.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'}
-                            alt=""
-                            className="w-8 h-8 rounded-full object-cover border border-gray-200 mb-1 flex-shrink-0"
-                          />
+                        {msg.content && <p className="break-words">{msg.content}</p>}
+
+                        {/* Media attachments */}
+                        {msg.medias && msg.medias.length > 0 && (
+                          <div
+                            className={`mt-2 grid gap-1.5 ${
+                              msg.medias.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+                            }`}
+                          >
+                            {msg.medias.map((media, i) => {
+                              const isVideo =
+                                media.type === 'VIDEO' ||
+                                media.url?.match(/\.(mp4|webm|mov)$/i);
+                              return (
+                                <div
+                                  key={media.id || i}
+                                  onClick={() =>
+                                    setLightboxMedia({
+                                      url: media.url,
+                                      type: isVideo ? 'VIDEO' : 'IMAGE',
+                                    })
+                                  }
+                                  className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition max-h-48 bg-black/10"
+                                >
+                                  {isVideo ? (
+                                    <video
+                                      src={media.url}
+                                      className="w-full h-full object-cover max-h-48"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={media.url}
+                                      alt=""
+                                      className="w-full h-full object-cover max-h-48"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
 
-                        <div className="max-w-[75%] sm:max-w-[65%] space-y-1">
-                          {/* Sender name for group */}
-                          {!isMine && (activeConv.type === 'GROUP' || activeConv.isGroup) && (
-                            <p className="text-[10px] text-gray-500 pl-1 font-bold">
-                              {msg.senderName || 'Thành viên'}
-                            </p>
-                          )}
-
-                          {/* Bubble Container */}
-                          <div
-                            className={`p-3.5 rounded-3xl text-xs leading-relaxed shadow-sm relative ${
-                              isMine
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs'
-                                : 'bg-white text-gray-900 border border-gray-100 rounded-bl-xs'
-                            }`}
-                          >
-                            {/* Reply Context if any */}
-                            {msg.replyToMessage && (
-                              <div
-                                className={`mb-2 p-2 rounded-xl text-[11px] border-l-3 ${
-                                  isMine
-                                    ? 'bg-white/15 border-white/70 text-white'
-                                    : 'bg-gray-100 border-blue-500 text-gray-700'
-                                }`}
-                              >
-                                <span className="font-bold">Đang trả lời: </span>
-                                <span className="line-clamp-1">{msg.replyToMessage.content || 'Tệp đính kèm'}</span>
-                              </div>
-                            )}
-
-                            {/* Text content */}
-                            {msg.content && (
-                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                            )}
-
-                            {/* Media attachments */}
-                            {msg.medias && msg.medias.length > 0 && (
-                              <div className="grid grid-cols-2 gap-1.5 mt-2 rounded-2xl overflow-hidden">
-                                {msg.medias.map((m, mi) => (
-                                  <div
-                                    key={m.id || mi}
-                                    onClick={() => setLightboxMedia({ url: m.url, type: m.mediaType })}
-                                    className="aspect-square bg-slate-900 cursor-pointer overflow-hidden group/media relative rounded-xl"
-                                  >
-                                    <img
-                                      src={m.url}
-                                      alt=""
-                                      className="w-full h-full object-cover group-hover/media:scale-105 transition-transform"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Reaction badge pill on bubble bottom */}
-                            {totalReactions > 0 && (
-                              <div
-                                onClick={() => setSelectedReactionMsgId(msg.id)}
-                                className="absolute -bottom-3 right-3 bg-white text-gray-700 rounded-full px-2 py-0.5 text-[10px] font-black shadow-md border border-gray-200 flex items-center gap-1 cursor-pointer hover:bg-gray-50 transition z-10"
-                                title="Xem danh sách cảm xúc"
-                              >
-                                {Object.entries(counts)
-                                  .filter(([_, count]) => Number(count) > 0)
-                                  .map(([type]) => (
-                                    <span key={type}>{REACTION_ICONS[type]?.emoji || '👍'}</span>
-                                  ))}
-                                <span>{totalReactions}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Timestamp */}
-                          <p
-                            className={`text-[10px] text-gray-400 px-1.5 ${
-                              isMine ? 'text-right' : 'text-left'
-                            }`}
-                          >
+                        <div
+                          className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
+                            isMe ? 'text-indigo-100/70' : 'text-slate-400'
+                          }`}
+                        >
+                          <span>
                             {msg.createdAt
                               ? new Date(msg.createdAt).toLocaleTimeString([], {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })
                               : ''}
-                          </p>
+                          </span>
+                          {isMe && <CheckCheck className="w-3 h-3 stroke-[2]" />}
                         </div>
+                      </div>
 
-                        {/* Quick Action buttons on hover */}
-                        <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-1 mb-4 flex-shrink-0">
-                          {/* Reaction Picker Button */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setActiveReactionPickerMsgId(
-                                  activeReactionPickerMsgId === msg.id ? null : msg.id
-                                )
-                              }
-                              className="p-1.5 text-gray-400 hover:text-amber-500 rounded-full hover:bg-white shadow-xs transition"
-                              title="Bày tỏ cảm xúc"
-                            >
-                              <Smile size={15} />
-                            </button>
-                            <AnimatePresence>
-                              {activeReactionPickerMsgId === msg.id && (
-                                <ReactionPicker
-                                  onSelect={(type) => {
-                                    if (myReact === type) {
-                                      handleRemoveReaction(msg.id);
-                                    } else {
-                                      handleReactToMessage(msg.id, type);
-                                    }
-                                  }}
-                                  onClose={() => setActiveReactionPickerMsgId(null)}
-                                />
-                              )}
-                            </AnimatePresence>
-                          </div>
+                      {/* Reaction Badges */}
+                      {hasReactions && (
+                        <div
+                          onClick={() => setReactionUsersMsgId(msg.id)}
+                          className="mt-1 flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-xs text-[11px] w-fit"
+                        >
+                          {msg.counts &&
+                            Object.entries(msg.counts).map(([type, count]) => {
+                              if (count <= 0) return null;
+                              return (
+                                <span key={type} className="flex items-center gap-0.5">
+                                  <span>{REACTION_ICONS[type]?.emoji || '👍'}</span>
+                                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                    {count}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                        </div>
+                      )}
 
-                          {/* Reply Button */}
+                      {/* Message Actions Menu (hover) */}
+                      <div
+                        className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs z-10 ${
+                          isMe ? '-left-20' : '-right-20'
+                        }`}
+                      >
+                        {/* Reaction Trigger */}
+                        <div className="relative">
                           <button
                             type="button"
-                            onClick={() => setReplyToMessage(msg)}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 rounded-full hover:bg-white shadow-xs transition"
-                            title="Trả lời"
+                            onClick={() =>
+                              setActiveReactionPickerMsgId(
+                                activeReactionPickerMsgId === msg.id ? null : msg.id
+                              )
+                            }
+                            className="p-1 hover:text-indigo-600 text-slate-400 transition"
+                            title="Thả cảm xúc"
                           >
-                            <Reply size={15} />
+                            <Smile className="w-3.5 h-3.5" />
                           </button>
-
-                          {/* Delete Button (if mine) */}
-                          {isMine && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              className="p-1.5 text-gray-400 hover:text-rose-600 rounded-full hover:bg-white shadow-xs transition"
-                              title="Xóa tin nhắn"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                          {activeReactionPickerMsgId === msg.id && (
+                            <ReactionPicker
+                              onSelect={(type) => handleReact(msg.id, type)}
+                              onClose={() => setActiveReactionPickerMsgId(null)}
+                            />
                           )}
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="py-20 text-center space-y-3 text-gray-400">
-                    <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
-                      <Sparkles size={28} />
-                    </div>
-                    <p className="font-bold text-gray-800 text-sm">Chưa có tin nhắn nào</p>
-                    <p className="text-xs max-w-xs mx-auto">
-                      Hãy gửi lời chào đầu tiên để bắt đầu cuộc trò chuyện thú vị! 👋
-                    </p>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
 
-              {/* Chat Input Bar */}
-              <div className="p-3 sm:p-4 border-t border-gray-100 bg-white">
-                {/* Reply Context Banner */}
-                {replyToMessage && (
-                  <div className="flex items-center justify-between bg-blue-50/80 px-4 py-2 rounded-2xl text-xs text-blue-900 mb-2 border border-blue-100 shadow-xs">
-                    <div className="truncate flex items-center gap-2">
-                      <Reply size={14} className="text-blue-600 flex-shrink-0" />
-                      <span className="font-bold">Đang trả lời {replyToMessage.senderName || 'tin nhắn'}: </span>
-                      <span className="truncate text-gray-600">{replyToMessage.content || 'Tệp đính kèm'}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setReplyToMessage(null)}
-                      className="p-1 hover:bg-blue-200/60 rounded-full text-blue-700 transition"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Selected Files Preview */}
-                {selectedFiles.length > 0 && (
-                  <div className="flex gap-2.5 overflow-x-auto pb-2 mb-2 dating-scrollbar">
-                    {selectedFiles.map((file, fi) => (
-                      <div
-                        key={fi}
-                        className="relative flex-shrink-0 w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-xs"
-                      >
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+                        {/* Reply Button */}
                         <button
                           type="button"
-                          onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== fi))}
-                          className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-rose-600 text-white rounded-full transition"
+                          onClick={() => setReplyingTo(msg)}
+                          className="p-1 hover:text-indigo-600 text-slate-400 transition"
+                          title="Trả lời"
                         >
-                          <X size={12} />
+                          <Reply className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Delete Button (if mine) */}
+                        {isMe && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 hover:text-red-600 text-slate-400 transition"
+                            title="Xóa tin nhắn"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
-                {/* Form Input */}
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition"
-                    title="Đính kèm ảnh hoặc video"
-                  >
-                    <ImageIcon size={20} />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Nhập tin nhắn... (Nhấn Enter để gửi)"
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition font-medium"
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={(!inputText.trim() && selectedFiles.length === 0) || sending}
-                    className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl disabled:opacity-40 shadow-md shadow-blue-500/20 transition active:scale-95 flex-shrink-0"
-                  >
-                    {sending ? (
-                      <Loader2 size={17} className="animate-spin" />
-                    ) : (
-                      <Send size={17} />
-                    )}
-                  </button>
-                </form>
+          {/* Replying Preview Banner */}
+          {replyingTo && (
+            <div className="px-4 py-2 bg-indigo-50/80 dark:bg-indigo-950/40 border-t border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 truncate">
+                <Reply className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span className="text-slate-600 dark:text-slate-300 truncate">
+                  Đang trả lời:{' '}
+                  <strong>{replyingTo.senderName || 'Tin nhắn'}</strong> - "
+                  {replyingTo.content}"
+                </span>
               </div>
-            </>
-          ) : (
-            /* Empty State when no conversation selected */
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400">
-              <div className="w-24 h-24 bg-gradient-to-tr from-blue-50 to-indigo-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <Users size={42} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">Tin nhắn của bạn</h3>
-              <p className="text-xs text-gray-400 max-w-xs mt-1.5 leading-relaxed">
-                Chọn một cuộc trò chuyện từ danh sách bên trái hoặc tạo nhóm mới để bắt đầu trò chuyện!
-              </p>
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
+
+          {/* Attached Files Preview */}
+          {selectedFiles.length > 0 && (
+            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2 overflow-x-auto">
+              {selectedFiles.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="relative group shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/5"
+                >
+                  {file.type.startsWith('image/') ? (
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500 font-bold p-1 text-center">
+                      FILE
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeSelectedFile(idx)}
+                    className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Composer */}
+          <form
+            onSubmit={handleSend}
+            className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2"
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              multiple
+              accept="image/*,video/*"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 text-slate-400 hover:text-indigo-600 transition rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="Đính kèm ảnh / video"
+            >
+              <ImageIcon className="w-5 h-5" />
+            </button>
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="Soạn tin nhắn..."
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-indigo-600"
+            />
+            <button
+              type="submit"
+              disabled={(!messageInput.trim() && selectedFiles.length === 0) || sending}
+              className="p-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl transition active:scale-95 shadow-xs"
+            >
+              <Send className="w-4 h-4 stroke-[2]" />
+            </button>
+          </form>
         </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+          <MessageSquare className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-700" />
+          <p className="text-sm font-semibold">
+            Chọn một cuộc trò chuyện để bắt đầu nhắn tin
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Hoặc chọn một người bạn ở danh sách phía trên để mở tin nhắn riêng
+          </p>
+        </div>
+      )}
 
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* COLUMN 3: Chat Info Sidebar */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        <ChatInfoSidebar
-          isOpen={showInfoSidebar && !!activeConv}
-          onClose={() => setShowInfoSidebar(false)}
-          conversation={activeConv}
-          messages={messages}
-          currentUser={currentUser}
-          onConversationUpdated={() => fetchConversations(activeConvId)}
-          onOpenMembersModal={() => setShowGroupMembers(true)}
-          onOpenMediaLightbox={(url, type) => setLightboxMedia({ url, type })}
-        />
-      </div>
-
-      {/* Modals */}
+      {/* Sub Modals & Sidebars */}
       {showCreateGroup && (
         <CreateGroupModal
           onClose={() => setShowCreateGroup(false)}
           onGroupCreated={(newGroup) => {
             fetchConversations();
-            if (newGroup) setActiveConv(newGroup);
+            if (newGroup) setActiveConversation(newGroup);
           }}
         />
       )}
 
-      {showGroupMembers && activeConv && (
+      {showChatInfo && activeConversation && (
+        <ChatInfoSidebar
+          isOpen={showChatInfo}
+          onClose={() => setShowChatInfo(false)}
+          conversation={activeConversation}
+          messages={messages}
+          currentUser={user}
+          onConversationUpdated={fetchConversations}
+          onOpenMembersModal={() => setShowMembersModal(true)}
+          onOpenMediaLightbox={(url, type) => setLightboxMedia({ url, type })}
+        />
+      )}
+
+      {showMembersModal && activeConversation && (
         <GroupMembersModal
-          conversationId={activeConv.conversation_id || activeConv.id}
-          conversationName={activeConv.displayName || activeConv.name}
-          onClose={() => setShowGroupMembers(false)}
-          onMembersUpdated={() => fetchConversations(activeConvId)}
+          conversationId={convId}
+          conversationName={activeName}
+          onClose={() => setShowMembersModal(false)}
+          onMembersUpdated={fetchConversations}
         />
       )}
 
@@ -1069,13 +881,15 @@ export default function MessagesPage() {
         />
       )}
 
-      {selectedReactionMsgId && (
+      {reactionUsersMsgId && (
         <MessageReactionUsersModal
-          isOpen={!!selectedReactionMsgId}
-          onClose={() => setSelectedReactionMsgId(null)}
-          messageId={selectedReactionMsgId}
+          isOpen={!!reactionUsersMsgId}
+          onClose={() => setReactionUsersMsgId(null)}
+          messageId={reactionUsersMsgId}
         />
       )}
     </div>
   );
-}
+};
+
+export default MessagesPage;

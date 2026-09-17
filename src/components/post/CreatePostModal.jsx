@@ -1,206 +1,178 @@
-import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Image, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Image, X, UploadCloud, Film } from 'lucide-react';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
+import toast from 'react-hot-toast';
 import { useUser } from '../../contexts/UserContext';
 import postService from '../../services/postService';
-import toast from 'react-hot-toast';
 
-export default function CreatePostModal({ isOpen, onClose, onPostCreated }) {
+export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
   const { user } = useUser();
   const [content, setContent] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]); // File objects
+  const [previews, setPreviews] = useState([]);
   const [visibility, setVisibility] = useState('PUBLIC');
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
-  if (!isOpen) return null;
-
-  const handleFileChange = (e) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...filesArray]);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const currentUser = {
+    name: user?.fullName || user?.name || user?.userName || 'Bạn',
+    avatar: user?.avatarUrl || user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
   };
 
-  const removeFile = (index) => {
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (selectedFiles.length + files.length > 5) {
+      toast.error('Chỉ được tải lên tối đa 5 tệp mỗi bài viết');
+      return;
+    }
+
+    const newFiles = [...selectedFiles, ...files];
+    setSelectedFiles(newFiles);
+
+    const newPreviews = files.map((file) => ({
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith('video') ? 'video' : 'image',
+      name: file.name,
+    }));
+    setPreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const handleRemoveFile = (index) => {
+    URL.revokeObjectURL(previews[index]?.url);
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!content.trim() && selectedFiles.length === 0) return;
+    if (!content.trim() && selectedFiles.length === 0) {
+      toast.error('Vui lòng nhập nội dung hoặc chọn tệp đính kèm');
+      return;
+    }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('content', content.trim());
+      if (content.trim()) {
+        formData.append('content', content.trim());
+      }
       formData.append('visibility', visibility);
-
       selectedFiles.forEach((file) => {
         formData.append('files', file);
       });
 
       await postService.createPost(formData);
+      toast.success('Đã đăng bài viết thành công!');
 
+      // Reset
       setContent('');
-      setVisibility('PUBLIC');
       setSelectedFiles([]);
-      toast.success('Đã chia sẻ bài viết mới!');
+      setPreviews([]);
       onClose();
-
-      if (onPostCreated) {
-        onPostCreated();
-      }
-    } catch (error) {
-      console.error('Error creating post:', error);
-      toast.error(error.response?.data?.message || 'Không thể tạo bài viết');
+      if (onPostCreated) onPostCreated();
+    } catch (err) {
+      console.error('Create post error:', err);
+      toast.error(err.response?.data?.message || 'Không thể tạo bài viết');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo bài viết mới" maxWidth="max-w-lg">
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Author & Visibility Selector */}
+        <div className="flex items-center gap-3">
+          <img
+            src={currentUser.avatar}
+            alt={currentUser.name}
+            className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-600/20"
+          />
+          <div>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">
+              {currentUser.name}
+            </p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+                className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 outline-none cursor-pointer"
+              >
+                <option value="PUBLIC">Công khai 🌐</option>
+                <option value="FRIEND">Bạn bè 👥</option>
+                <option value="PRIVATE">Chỉ mình tôi 🔒</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Text Area */}
+        <textarea
+          rows={4}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={`${currentUser.name} ơi, bạn đang nghĩ gì thế? Thêm #hashtag...`}
+          className="w-full text-sm bg-transparent placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100 outline-none resize-none leading-relaxed"
+          autoFocus
         />
 
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden z-10 border border-gray-100 flex flex-col max-h-[90vh]"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-sm font-semibold text-gray-500 hover:text-gray-800"
-            >
-              Hủy
-            </button>
-            <h3 className="font-bold text-gray-900 text-sm">Tạo bài viết mới</h3>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isLoading || (!content.trim() && selectedFiles.length === 0)}
-              className="text-sm font-bold text-blue-600 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Đang đăng...' : 'Chia sẻ'}
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-5 overflow-y-auto space-y-4 flex-1">
-            {/* User Profile info */}
-            <div className="flex items-center gap-3">
-              {user?.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                  {user?.username?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              )}
-              <div>
-                <p className="font-bold text-gray-900 text-xs">{user?.fullName || user?.username}</p>
-                <div className="mt-0.5">
-                  <select
-                    value={visibility}
-                    onChange={(e) => setVisibility(e.target.value)}
-                    className="text-[11px] font-semibold text-gray-600 bg-gray-100 rounded-lg px-2 py-0.5 border-none outline-none cursor-pointer"
-                  >
-                    <option value="PUBLIC">Công khai</option>
-                    <option value="FRIEND">Bạn bè</option>
-                    <option value="PRIVATE">Chỉ mình tôi</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Textarea */}
-            <textarea
-              className="w-full resize-none outline-none text-gray-800 placeholder-gray-400 text-sm leading-relaxed min-h-[120px]"
-              placeholder="Viết chú thích hoặc chia sẻ suy nghĩ của bạn..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-
-            {/* Media Upload Area */}
-            {selectedFiles.length === 0 ? (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-200 hover:border-blue-400 rounded-2xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer bg-gray-50/50 hover:bg-blue-50/20 transition"
-              >
-                <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Image size={24} />
-                </div>
-                <p className="text-xs font-bold text-gray-700">Kéo thả ảnh hoặc video vào đây</p>
-                <p className="text-[11px] text-gray-400">Chọn từ máy tính của bạn</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2.5 pt-2">
-                {selectedFiles.map((file, index) => {
-                  const isVideo = file.type.startsWith('video');
-                  const fileUrl = URL.createObjectURL(file);
-                  return (
-                    <div
-                      key={index}
-                      className="relative aspect-square rounded-2xl overflow-hidden border border-gray-200 bg-gray-900 shadow-xs"
-                    >
-                      {isVideo ? (
-                        <video src={fileUrl} className="w-full h-full object-cover" />
-                      ) : (
-                        <img src={fileUrl} alt="" className="w-full h-full object-cover" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-black text-white rounded-full p-1 transition"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {/* Add more button */}
+        {/* Media Preview Grid */}
+        {previews.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+            {previews.map((item, idx) => (
+              <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-900">
+                {item.type === 'video' ? (
+                  <video src={item.url} className="w-full h-full object-cover" />
+                ) : (
+                  <img src={item.url} alt="" className="w-full h-full object-cover" />
+                )}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 flex flex-col items-center justify-center text-gray-400 hover:text-blue-600 transition"
+                  onClick={() => handleRemoveFile(idx)}
+                  className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-black/80 text-white rounded-full transition shadow-md"
                 >
-                  <Image size={20} />
-                  <span className="text-[10px] font-bold mt-1">Thêm</span>
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-            )}
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              multiple
-              accept="image/*,video/*"
-            />
+            ))}
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        )}
+
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Action Toolbar */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl transition"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Tải ảnh / Video</span>
+          </button>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting || (!content.trim() && selectedFiles.length === 0)}
+            className="px-5 py-2 text-xs font-semibold"
+          >
+            {isSubmitting ? 'Đang đăng...' : 'Đăng bài viết'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
-}
+};
+
+export default CreatePostModal;

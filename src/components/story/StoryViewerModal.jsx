@@ -1,406 +1,249 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import storyService from '../../services/storyService';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, ChevronLeft, ChevronRight, Heart, Send, Eye, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { X, ChevronLeft, ChevronRight, Trash2, Eye, Users } from 'lucide-react';
-import { REACTION_ICONS } from '../post/ReactionPicker';
+import storyService from '../../services/storyService';
+import { useUser } from '../../contexts/UserContext';
+import { useSocial } from '../../contexts/MockSocialContext';
 
-const STORY_DURATION = 5000; // 5 seconds per story
-
-export default function StoryViewerModal({ stories = [], initialIndex = 0, currentUserId, onClose, onStoryDeleted }) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [progress, setProgress] = useState(0);
+export const StoryViewerModal = ({ story, onClose }) => {
+  const { currentUserId } = useUser();
+  const { refreshData } = useSocial();
   const [isPaused, setIsPaused] = useState(false);
-  const [userStories, setUserStories] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [activeStorySubIndex, setActiveStorySubIndex] = useState(0);
-  const [showViewersList, setShowViewersList] = useState(false);
-  const [realtimeViewers, setRealtimeViewers] = useState([]);
-  const [loadingViewers, setLoadingViewers] = useState(false);
+  const [viewers, setViewers] = useState([]);
+  const [showViewersModal, setShowViewersModal] = useState(false);
+  const [reactionCount, setReactionCount] = useState(0);
+  const [currentVisibility, setCurrentVisibility] = useState(story?.visibility || 'PUBLIC');
+  const [updatingVisibility, setUpdatingVisibility] = useState(false);
 
-  const timerRef = useRef(null);
-  const startTimeRef = useRef(Date.now());
-  const elapsedRef = useRef(0);
+  const storyId = story?.storyId || story?.id;
+  const authorId = story?.userId || story?.user?.id;
+  const isOwner = currentUserId && String(currentUserId) === String(authorId);
+  const authorName = story?.username || story?.user?.name || `Người dùng #${authorId || ''}`;
+  const authorAvatar = story?.avatarUrl || story?.user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+  const mediaUrl = story?.url || story?.items?.[0]?.mediaUrl || authorAvatar;
+  const isVideo = story?.mediaType === 'VIDEO' || mediaUrl.endsWith('.mp4');
 
-  const currentStoryUser = stories[currentIndex];
+  // Record view on mount
+  useEffect(() => {
+    if (storyId) {
+      storyService.viewStory(storyId).catch(() => {});
+      storyService.getReactionCount(storyId).then((res) => {
+        setReactionCount(res.data?.data || 0);
+      }).catch(() => {});
+    }
+  }, [storyId]);
 
-  // Fetch full stories of target user
-  const fetchUserStories = useCallback(async (userId) => {
-    if (!userId) return;
-    setLoading(true);
+  // Load viewers if owner
+  const handleLoadViewers = async () => {
     try {
-      let res;
-      if (userId === currentUserId) {
-        res = await storyService.getMyStories();
-      } else {
-        res = await storyService.getUserStories(userId);
-      }
+      const res = await storyService.getViewers(storyId);
       const data = res.data?.data || [];
-      setUserStories(Array.isArray(data) ? data : [data]);
-      setProgress(0);
-      elapsedRef.current = 0;
-      startTimeRef.current = Date.now();
-    } catch (err) {
-      console.error('Failed to load user stories', err);
-      toast.error('Không thể tải tin của người dùng này.');
-      onClose();
-    } finally {
-      setLoading(false);
+      setViewers(Array.isArray(data) ? data : []);
+      setShowViewersModal(true);
+    } catch (e) {
+      toast.error('Không thể tải danh sách người xem');
     }
-  }, [currentUserId, onClose]);
+  };
 
-  useEffect(() => {
-    if (currentStoryUser?.userId) {
-      fetchUserStories(currentStoryUser.userId);
-    }
-  }, [currentStoryUser, fetchUserStories]);
-
-  const currentSubStory = userStories[activeStorySubIndex] || currentStoryUser;
-  const isMyStory = (currentSubStory?.userId || currentStoryUser?.userId) === currentUserId;
-
-  // Fetch viewers when viewing own story
-  useEffect(() => {
-    const sId = currentSubStory?.storyId || currentSubStory?.id;
-    if (isMyStory && sId) {
-      setLoadingViewers(true);
-      storyService.getViewers(sId)
-        .then((res) => {
-          const list = res.data?.data;
-          if (Array.isArray(list)) setRealtimeViewers(list);
-        })
-        .catch(() => {})
-        .finally(() => setLoadingViewers(false));
-    }
-  }, [isMyStory, currentSubStory]);
-
-  // Mark viewed
-  useEffect(() => {
-    const sId = currentSubStory?.storyId || currentSubStory?.id;
-    if (sId) {
-      storyService.viewStory(sId).catch(() => {});
-    }
-  }, [currentSubStory]);
-
-  const goToNextStory = useCallback(() => {
-    if (activeStorySubIndex < userStories.length - 1) {
-      setActiveStorySubIndex((prev) => prev + 1);
-      setProgress(0);
-      elapsedRef.current = 0;
-      startTimeRef.current = Date.now();
-    } else if (currentIndex < stories.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setActiveStorySubIndex(0);
-      setProgress(0);
-      elapsedRef.current = 0;
-      startTimeRef.current = Date.now();
-    } else {
-      onClose();
-    }
-  }, [activeStorySubIndex, userStories.length, currentIndex, stories.length, onClose]);
-
-  const goToPrevStory = useCallback(() => {
-    if (activeStorySubIndex > 0) {
-      setActiveStorySubIndex((prev) => prev - 1);
-      setProgress(0);
-      elapsedRef.current = 0;
-      startTimeRef.current = Date.now();
-    } else if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-      setActiveStorySubIndex(0);
-      setProgress(0);
-      elapsedRef.current = 0;
-      startTimeRef.current = Date.now();
-    }
-  }, [activeStorySubIndex, currentIndex]);
-
-  // Story Progress Timer
-  useEffect(() => {
-    if (isPaused || loading || !currentSubStory) return;
-
-    startTimeRef.current = Date.now() - elapsedRef.current;
-
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      elapsedRef.current = elapsed;
-      const pct = Math.min(100, (elapsed / STORY_DURATION) * 100);
-      setProgress(pct);
-
-      if (pct >= 100) {
-        clearInterval(interval);
-        goToNextStory();
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isPaused, loading, currentSubStory, goToNextStory]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') goToNextStory();
-      if (e.key === 'ArrowLeft') goToPrevStory();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goToNextStory, goToPrevStory, onClose]);
-
-  const handleReact = async (type) => {
-    const sId = currentSubStory?.storyId || currentSubStory?.id;
-    if (!sId) return;
+  const handleSendReaction = async (type = 'LOVE') => {
     try {
-      await storyService.reactToStory(sId, type);
-      toast(`Đã gửi cảm xúc!`, { icon: REACTION_ICONS[type]?.emoji || '❤️' });
-    } catch (err) {
-      console.error('Failed to react to story', err);
+      await storyService.reactToStory(storyId, type);
+      setReactionCount((prev) => prev + 1);
+      toast.success(`Đã thả cảm xúc vào tin!`);
+    } catch (e) {
+      toast.error('Lỗi khi thả cảm xúc');
+    }
+  };
+
+  const handleUpdateVisibility = async (newVisibility) => {
+    setUpdatingVisibility(true);
+    try {
+      await storyService.updateVisibility(storyId, newVisibility);
+      setCurrentVisibility(newVisibility);
+      if (story) story.visibility = newVisibility;
+      const label = newVisibility === 'PUBLIC' ? 'Công khai' : newVisibility === 'FRIEND' ? 'Bạn bè' : 'Chỉ mình tôi';
+      toast.success(`Đã cập nhật quyền riêng tư tin: ${label}`);
+      if (refreshData) refreshData();
+    } catch (e) {
+      toast.error('Không thể cập nhật quyền riêng tư tin');
+    } finally {
+      setUpdatingVisibility(false);
     }
   };
 
   const handleDeleteStory = async () => {
-    const sId = currentSubStory?.storyId || currentSubStory?.id;
-    if (!sId) return;
-    if (window.confirm('Bạn có chắc chắn muốn xóa tin này không?')) {
-      try {
-        await storyService.deleteStory(sId);
-        toast.success('Đã xóa tin.');
-        if (onStoryDeleted) onStoryDeleted(sId);
-        goToNextStory();
-      } catch (err) {
-        toast.error('Không thể xóa tin.');
-      }
+    if (!window.confirm('Bạn có chắc muốn xóa tin này không?')) return;
+    try {
+      await storyService.deleteStory(storyId);
+      toast.success('Đã xóa tin');
+      onClose();
+      if (refreshData) refreshData();
+    } catch (e) {
+      toast.error('Không thể xóa tin');
     }
   };
 
-  if (!currentStoryUser) return null;
-
-  // Viewers / interactions from API or MyStoryResponse
-  const viewers = realtimeViewers.length > 0
-    ? realtimeViewers
-    : (currentSubStory?.interactions || currentSubStory?.viewers || []);
-  const viewCount = Math.max(viewers.length, currentSubStory?.viewCount || 0);
-
-  // Reactions summary from MyStoryResponse
-  const reactions = currentSubStory?.reactions || [];
-  const reactionCount = currentSubStory?.reactionCount ?? reactions.length;
+  if (!story) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-lg animate-fade-in select-none">
-      {/* Close button */}
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-0 sm:p-4 select-none">
+      {/* Close button top right */}
       <button
+        type="button"
         onClick={onClose}
-        className="absolute top-5 right-5 z-50 p-2.5 text-white/80 hover:text-white bg-black/40 hover:bg-black/70 rounded-full backdrop-blur-md transition shadow-lg"
+        className="absolute top-4 right-4 z-50 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition"
+        aria-label="Đóng tin"
       >
-        <X size={24} />
+        <X className="w-6 h-6 stroke-[2.5]" />
       </button>
 
-      {/* Prev button */}
-      <button
-        onClick={goToPrevStory}
-        disabled={currentIndex === 0 && activeStorySubIndex === 0}
-        className="absolute left-4 sm:left-10 z-40 p-3 text-white/70 hover:text-white bg-black/30 hover:bg-black/60 rounded-full backdrop-blur-md transition disabled:opacity-20 disabled:pointer-events-none hidden sm:block"
-      >
-        <ChevronLeft size={28} />
-      </button>
-
-      {/* Next button */}
-      <button
-        onClick={goToNextStory}
-        className="absolute right-4 sm:right-10 z-40 p-3 text-white/70 hover:text-white bg-black/30 hover:bg-black/60 rounded-full backdrop-blur-md transition hidden sm:block"
-      >
-        <ChevronRight size={28} />
-      </button>
-
-      {/* Main Story Container (9:16 ratio) */}
+      {/* Main 9:16 Story Frame */}
       <div
-        className="relative w-full max-w-sm h-[88vh] max-h-[780px] bg-gray-950 rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/10"
+        className="relative w-full max-w-sm h-full sm:h-[820px] max-h-screen bg-slate-900 sm:rounded-3xl overflow-hidden flex flex-col justify-between shadow-2xl"
         onMouseDown={() => setIsPaused(true)}
         onMouseUp={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
-        {/* Progress Bars */}
-        <div className="absolute top-3 left-3 right-3 z-30 flex gap-1.5">
-          {userStories.length > 0 ? (
-            userStories.map((_, idx) => (
-              <div
-                key={idx}
-                className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden backdrop-blur-sm"
-              >
-                <div
-                  className="h-full bg-white transition-all duration-75 ease-linear"
-                  style={{
-                    width:
-                      idx < activeStorySubIndex
-                        ? '100%'
-                        : idx === activeStorySubIndex
-                        ? `${progress}%`
-                        : '0%',
-                  }}
-                />
-              </div>
-            ))
-          ) : (
-            <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white transition-all duration-75 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          )}
-        </div>
+        {/* Background Image / Video */}
+        {isVideo ? (
+          <video
+            src={mediaUrl}
+            autoPlay
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        ) : (
+          <img
+            src={mediaUrl}
+            alt="Nội dung tin"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
 
-        {/* Story Header */}
-        <div className="absolute top-6 left-3 right-3 z-30 flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <img
-              src={currentSubStory?.avatarUrl || currentStoryUser.avatarUrl || 'https://via.placeholder.com/40'}
-              alt=""
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-white/80 shadow-md"
-            />
-            <div>
-              <p className="text-white font-bold text-sm leading-tight drop-shadow">
-                {currentSubStory?.username || currentStoryUser.username || 'Người dùng'}
-              </p>
-              <p className="text-white/70 text-xs drop-shadow">
-                {currentSubStory?.createdAt
-                  ? new Date(currentSubStory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : 'Vừa xong'}
-              </p>
+        {/* Top Header */}
+        <div className="relative z-20 p-4 pt-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <img
+                src={authorAvatar}
+                alt={authorName}
+                className="w-9 h-9 rounded-full object-cover border-2 border-white/80 shadow-xs"
+              />
+              <div>
+                <span className="text-xs font-bold text-white block drop-shadow-sm">
+                  {authorName}
+                </span>
+                <span className="text-[10px] text-white/70">
+                  {story.createdAt ? new Date(story.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '24h Story'}
+                </span>
+              </div>
             </div>
+
+            {isOwner && (
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={currentVisibility}
+                  onChange={(e) => handleUpdateVisibility(e.target.value)}
+                  disabled={updatingVisibility}
+                  className="bg-black/50 hover:bg-black/70 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 outline-none transition cursor-pointer"
+                  title="Thay đổi quyền riêng tư của tin"
+                >
+                  <option value="PUBLIC" className="bg-slate-900 text-white">🌐 Công khai</option>
+                  <option value="FRIEND" className="bg-slate-900 text-white">👥 Bạn bè</option>
+                  <option value="PRIVATE" className="bg-slate-900 text-white">🔒 Chỉ mình tôi</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteStory}
+                  className="p-1.5 bg-black/40 hover:bg-red-600/80 text-white rounded-full transition"
+                  title="Xóa story"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Delete action if my story */}
-          {isMyStory && (
+          {story.content && (
+            <div className="bg-black/40 backdrop-blur-xs p-2.5 rounded-xl text-xs text-white">
+              {story.content}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Interaction Bar */}
+        <div className="relative z-20 p-4 pb-6 flex items-center justify-between gap-3">
+          {isOwner ? (
             <button
-              onClick={handleDeleteStory}
-              className="p-2 text-white/80 hover:text-red-400 hover:bg-black/30 rounded-full transition backdrop-blur-sm"
-              title="Xoá tin"
+              type="button"
+              onClick={handleLoadViewers}
+              className="w-full py-2.5 px-4 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 transition"
             >
-              <Trash2 size={18} />
+              <Eye className="w-4 h-4" />
+              <span>Xem người đã xem tin</span>
             </button>
-          )}
-        </div>
-
-        {/* Story Media (Image or Video) */}
-        <div className="relative flex-1 w-full h-full flex items-center justify-center bg-black">
-          {loading ? (
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          ) : currentSubStory?.mediaType === 'VIDEO' ? (
-            <video
-              src={currentSubStory.url}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
           ) : (
-            <img
-              src={currentSubStory?.url}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          )}
-
-          {/* Touch navigation zones */}
-          <div
-            onClick={goToPrevStory}
-            className="absolute left-0 top-16 bottom-20 w-1/3 z-20 cursor-pointer"
-          />
-          <div
-            onClick={goToNextStory}
-            className="absolute right-0 top-16 bottom-20 w-2/3 z-20 cursor-pointer"
-          />
-        </div>
-
-        {/* Bottom Bar — Caption + Actions */}
-        <div className="absolute bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-3">
-          {/* Caption */}
-          {currentSubStory?.content && (
-            <p className="text-white text-sm font-medium leading-relaxed drop-shadow px-1">
-              {currentSubStory.content}
-            </p>
-          )}
-
-          {isMyStory ? (
-            /* === MY STORY: View count + Viewers list + Reaction summary === */
-            <div className="space-y-2">
-              {/* Stats row */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowViewersList((v) => !v)}
-                  className="flex items-center gap-2 text-white/90 text-xs font-semibold px-3 py-1.5 bg-white/10 rounded-xl backdrop-blur-md hover:bg-white/20 transition"
-                >
-                  <Eye size={14} />
-                  <span>{viewCount} người đã xem</span>
-                </button>
-                {reactionCount > 0 && (
-                  <div className="flex items-center gap-1.5 text-white/90 text-xs font-semibold px-3 py-1.5 bg-white/10 rounded-xl backdrop-blur-md">
-                    <span>❤️</span>
-                    <span>{reactionCount} cảm xúc</span>
-                  </div>
-                )}
+            <>
+              <div className="flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 text-xs text-white/80">
+                Nhấn ❤️ để bày tỏ cảm xúc
               </div>
-
-              {/* Viewers list (expandable) */}
-              {showViewersList && viewers.length > 0 && (
-                <div className="bg-black/60 backdrop-blur-md rounded-2xl p-3 max-h-40 overflow-y-auto space-y-2">
-                  <p className="text-white/60 text-[11px] font-semibold uppercase tracking-wider mb-1">
-                    Người đã xem
-                  </p>
-                  {viewers.map((v, idx) => {
-                    const vId = v.userId || v.id;
-                    const vReaction = v.reactionType && REACTION_ICONS[v.reactionType]
-                      ? REACTION_ICONS[v.reactionType].emoji
-                      : null;
-                    return (
-                      <Link
-                        key={vId || idx}
-                        to={`/users/${vId}`}
-                        onClick={onClose}
-                        className="flex items-center gap-2.5 group"
-                      >
-                        <img
-                          src={v.avatarUrl || 'https://via.placeholder.com/32'}
-                          alt=""
-                          className="w-7 h-7 rounded-full object-cover ring-1 ring-white/20"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-xs font-semibold truncate group-hover:text-blue-300 transition">
-                            {v.fullName || v.username || (v.email ? v.email.split('@')[0] : 'Người dùng')}
-                          </p>
-                          {v.username && (
-                            <p className="text-white/50 text-[10px] truncate">@{v.username}</p>
-                          )}
-                        </div>
-                        {vReaction && (
-                          <span className="text-base flex-shrink-0">{vReaction}</span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* === OTHER'S STORY: Quick Reaction Buttons === */
-            <div className="flex items-center justify-between gap-1 pt-1 border-t border-white/10">
-              {['LOVE', 'HAHA', 'WOW', 'SAD', 'ANGRY'].map((type) => {
-                const item = REACTION_ICONS[type];
-                return (
-                  <button
-                    key={type}
-                    onClick={() => handleReact(type)}
-                    className="p-2 hover:scale-125 transition-transform text-2xl"
-                    title={item.label}
-                  >
-                    {item.emoji}
-                  </button>
-                );
-              })}
-            </div>
+              <button
+                type="button"
+                onClick={() => handleSendReaction('LOVE')}
+                className="w-10 h-10 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg transition active:scale-90"
+              >
+                <Heart className="w-5 h-5 fill-current" />
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Viewers Modal */}
+      {showViewersModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 w-full max-w-sm border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Eye className="w-4 h-4 text-indigo-600" />
+                <span>Người đã xem ({viewers.length})</span>
+              </h4>
+              <button onClick={() => setShowViewersModal(false)} className="p-1 text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2.5">
+              {viewers.length > 0 ? (
+                viewers.map((v, i) => (
+                  <div key={i} className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <img
+                      src={v.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {v.username || `User #${v.userId}`}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {v.viewedAt ? new Date(v.viewedAt).toLocaleTimeString('vi-VN') : 'Đã xem'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-400 text-center py-4">Chưa có ai xem tin này</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default StoryViewerModal;

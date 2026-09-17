@@ -1,353 +1,270 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCheck, Trash2, Bell } from 'lucide-react';
-import notificationService from '../services/notificationService';
-import friendshipService from '../services/friendshipService';
-import { useUser } from '../contexts/UserContext';
-import { timeAgo } from '../lib/utils';
 import {
-  getNotifIcon,
-  getNotifTextColor,
-  getNotifUrl,
-  groupNotificationsByDay,
-} from '../components/notification/notificationHelpers';
-import { NotificationSkeleton } from '../components/ui/Skeleton';
+  Bell,
+  Heart,
+  MessageCircle,
+  UserPlus,
+  CheckCheck,
+  Trash2,
+  Sparkles,
+  ExternalLink,
+} from 'lucide-react';
+import Tabs from '../components/ui/Tabs';
+import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
+import notificationService from '../services/notificationService';
+import useWebSocketStore from '../stores/useWebSocketStore';
 
-// ── Single Notification Row ───────────────────────────────────────────────────
-
-function NotifRow({ notif, onRead, onDelete }) {
-  const navigate    = useNavigate();
-  const notifId     = notif.notificationId || notif.id;
-  const isRead      = notif.isRead || notif.read;
-  const name        = notif.senderFullName || notif.senderUsername || 'Ai đó';
-  const icon        = getNotifIcon(notif.type);
-  const colorClass  = getNotifTextColor(notif.type);
-  const isFriendReq = notif.type === 'FRIEND_REQUEST';
-
-  const [friendAction, setFriendAction]   = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const handleClick = async () => {
-    if (isFriendReq && !friendAction) return;
-    await onRead(notif);
-    navigate(getNotifUrl(notif));
-  };
-
-  const handleAccept = async (e) => {
-    e.stopPropagation();
-    if (actionLoading || friendAction) return;
-    setActionLoading(true);
-    try {
-      await friendshipService.acceptFriendRequest(notif.senderId);
-      setFriendAction('accepted');
-      toast.success(`Đã chấp nhận lời mời từ ${name}`);
-      await onRead(notif);
-    } catch { toast.error('Không thể chấp nhận lời mời'); }
-    finally { setActionLoading(false); }
-  };
-
-  const handleDecline = async (e) => {
-    e.stopPropagation();
-    if (actionLoading || friendAction) return;
-    setActionLoading(true);
-    try {
-      await friendshipService.rejectFriendRequest(notif.senderId);
-      setFriendAction('declined');
-      toast('Đã từ chối lời mời kết bạn', { icon: '👋' });
-      await onRead(notif);
-    } catch { toast.error('Không thể từ chối lời mời'); }
-    finally { setActionLoading(false); }
-  };
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-      onClick={handleClick}
-      className={`flex items-start gap-3.5 px-4 py-4 sm:px-6 group relative cursor-pointer transition-colors ${
-        !isRead ? 'bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-50'
-      }`}
-    >
-      {/* Avatar + type badge */}
-      <div className="relative flex-shrink-0">
-        {notif.senderAvatar ? (
-          <img
-            src={notif.senderAvatar}
-            alt={name}
-            className="w-12 h-12 rounded-full object-cover border border-slate-200"
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold select-none">
-            {name[0]?.toUpperCase() || '?'}
-          </div>
-        )}
-        <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-sm ${colorClass}`}>
-          {icon}
-        </span>
-      </div>
-
-      {/* Text content */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm leading-snug ${isRead ? 'text-slate-700' : 'text-slate-900 font-medium'}`}>
-          {notif.message || `${name} đã tương tác với bạn.`}
-        </p>
-        <p className={`text-xs mt-1 font-medium ${isRead ? 'text-slate-400' : 'text-indigo-500'}`}>
-          {timeAgo(notif.createdAt)}
-        </p>
-
-        {/* Inline friend request actions */}
-        {isFriendReq && !friendAction && (
-          <div className="flex gap-2.5 mt-3">
-            <button
-              type="button"
-              onClick={handleAccept}
-              disabled={actionLoading}
-              className="px-5 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition active:scale-95 disabled:opacity-60 cursor-pointer shadow-sm"
-            >
-              {actionLoading ? '…' : 'Chấp nhận'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDecline}
-              disabled={actionLoading}
-              className="px-5 py-2 bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-300 transition active:scale-95 disabled:opacity-60 cursor-pointer"
-            >
-              Từ chối
-            </button>
-          </div>
-        )}
-
-        {isFriendReq && friendAction === 'accepted' && (
-          <p className="mt-2 text-xs text-emerald-600 font-semibold">✅ Đã chấp nhận lời mời</p>
-        )}
-        {isFriendReq && friendAction === 'declined' && (
-          <p className="mt-2 text-xs text-slate-400">Đã từ chối</p>
-        )}
-      </div>
-
-      {/* Unread dot */}
-      {!isRead && (
-        <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-indigo-500 mt-1.5" />
-      )}
-
-      {/* Delete on hover */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onDelete(notifId); }}
-        className="absolute top-4 right-4 p-1.5 rounded-xl opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 hover:bg-red-50 transition"
-        aria-label="Xoá thông báo"
-      >
-        <Trash2 size={14} />
-      </button>
-    </motion.div>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-export default function NotificationsPage() {
+export const NotificationsPage = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage]           = useState(0);
-  const [hasMore, setHasMore]     = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
   const [unreadCount, setUnreadCount] = useState(0);
-  const bottomRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('all');
 
-  const fetchNotifications = useCallback(async (pg = 0, tab = 'all', reset = false) => {
-    if (pg === 0) setLoading(true);
-    else setLoadingMore(true);
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await notificationService.getNotifications(pg, 20, tab === 'unread');
-      const content = res.data?.data?.content || res.data?.data || [];
-      if (reset || pg === 0) {
-        setNotifications(content);
-      } else {
-        setNotifications((prev) => {
-          const ids = new Set(prev.map((n) => n.notificationId || n.id));
-          return [...prev, ...content.filter((n) => !ids.has(n.notificationId || n.id))];
-        });
+      const [listRes, countRes] = await Promise.allSettled([
+        notificationService.getNotifications(0, 50, activeFilter === 'unread'),
+        notificationService.getUnreadCount(),
+      ]);
+
+      if (listRes.status === 'fulfilled') {
+        const raw = listRes.value.data?.data?.content || listRes.value.data?.data || [];
+        setNotifications(Array.isArray(raw) ? raw : []);
       }
-      setPage(pg);
-      setHasMore(content.length === 20);
-    } catch { /* silent */ }
-    finally {
+      if (countRes.status === 'fulfilled') {
+        setUnreadCount(countRes.value.data?.data || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications', err);
+    } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
+  }, [activeFilter]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Subscribe to real-time incoming notifications from STOMP broker
+  useEffect(() => {
+    const unsub = useWebSocketStore.getState().addNotificationListener((newNotif) => {
+      setNotifications((prev) => [newNotif, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    });
+    return () => unsub();
   }, []);
 
-  useEffect(() => {
-    notificationService.getUnreadCount()
-      .then((res) => setUnreadCount(Number(res.data?.data ?? 0)))
-      .catch(() => {});
-    fetchNotifications(0, 'all', true);
-  }, []); // eslint-disable-line
+  const tabs = [
+    { id: 'all', label: 'Tất cả' },
+    { id: 'unread', label: 'Chưa đọc', badge: unreadCount },
+    { id: 'reactions', label: 'Cảm xúc' },
+    { id: 'comments', label: 'Bình luận' },
+    { id: 'friends', label: 'Bạn bè' },
+  ];
 
-  useEffect(() => {
-    setPage(0);
-    setHasMore(true);
-    fetchNotifications(0, activeTab, true);
-  }, [activeTab]); // eslint-disable-line
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    if (!bottomRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
-          fetchNotifications(page + 1, activeTab, false);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(bottomRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, page, activeTab, fetchNotifications]);
-
-  const handleRead = async (notif) => {
-    const id = notif.notificationId || notif.id;
-    if (!notif.isRead && id) {
-      try {
-        await notificationService.markAsRead(id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.notificationId || n.id) === id ? { ...n, isRead: true } : n)
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch { /* silent */ }
+  const filteredNotifs = notifications.filter((n) => {
+    const type = n.type || '';
+    if (activeFilter === 'unread') return !n.isRead;
+    if (activeFilter === 'reactions') {
+      return type.includes('REACTION');
     }
+    if (activeFilter === 'comments') {
+      return type.includes('COMMENT');
+    }
+    if (activeFilter === 'friends') {
+      return type.includes('FRIEND') || type === 'FOLLOW';
+    }
+    return true;
+  });
+
+  const getNotifIcon = (type = '') => {
+    if (type.includes('REACTION')) {
+      return <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />;
+    }
+    if (type.includes('COMMENT')) {
+      return <MessageCircle className="w-3.5 h-3.5 text-indigo-500" />;
+    }
+    if (type.includes('FRIEND') || type === 'FOLLOW') {
+      return <UserPlus className="w-3.5 h-3.5 text-emerald-500" />;
+    }
+    return <Sparkles className="w-3.5 h-3.5 text-amber-500" />;
   };
 
-  const handleMarkAllRead = async () => {
+  const handleMarkAll = async () => {
     try {
       await notificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-      toast.success('Đã đọc tất cả thông báo');
-    } catch { toast.error('Có lỗi xảy ra'); }
+      toast.success('Đã đánh dấu tất cả thông báo là đã đọc');
+    } catch (e) {
+      toast.error('Không thể đánh dấu đọc tất cả');
+    }
   };
 
-  const handleDelete = async (notifId) => {
-    if (!notifId) return;
+  const handleItemClick = async (notif) => {
+    const nId = notif.notificationId || notif.id;
+    if (!notif.isRead && nId) {
+      try {
+        await notificationService.markAsRead(nId);
+        setNotifications((prev) =>
+          prev.map((n) =>
+            (n.notificationId || n.id) === nId ? { ...n, isRead: true } : n
+          )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (e) {}
+    }
+
+    // Navigate to targetUrl or entity
+    if (notif.targetUrl) {
+      navigate(notif.targetUrl);
+    } else if (notif.entityType === 'POST' && notif.entityId) {
+      navigate(`/posts/${notif.entityId}`);
+    } else if (notif.senderId) {
+      navigate(`/profile/${notif.senderId}`);
+    }
+  };
+
+  const handleDelete = async (e, notifId) => {
+    e.stopPropagation();
     try {
       await notificationService.deleteNotification(notifId);
-      setNotifications((prev) => prev.filter((n) => (n.notificationId || n.id) !== notifId));
-    } catch { /* silent */ }
+      setNotifications((prev) =>
+        prev.filter((n) => (n.notificationId || n.id) !== notifId)
+      );
+      toast.success('Đã xóa thông báo');
+    } catch (e) {
+      toast.error('Không thể xóa thông báo');
+    }
   };
 
-  const grouped = groupNotificationsByDay(notifications);
-
   return (
-    <div className="max-w-2xl mx-auto pt-2 pb-24 md:pb-8 px-0 sm:px-4">
-      {/* Page Header */}
-      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 shadow-card overflow-hidden">
-        <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between">
+    <div className="w-full max-w-4xl mx-auto py-2">
+      {/* Header */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs mb-5">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Thông báo</h1>
-            {unreadCount > 0 && (
-              <p className="text-xs text-slate-500 mt-0.5">{unreadCount} chưa đọc</p>
-            )}
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+              Thông báo
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Cập nhật hoạt động mới nhất liên quan đến bạn
+            </p>
           </div>
+
           {unreadCount > 0 && (
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition cursor-pointer"
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={CheckCheck}
+              onClick={handleMarkAll}
             >
-              <CheckCheck size={14} />
-              Đọc tất cả
-            </button>
+              Đánh dấu tất cả đã đọc
+            </Button>
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="px-4 sm:px-6 pb-3">
-          <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
-            {[
-              { key: 'all',    label: 'Tất cả' },
-              { key: 'unread', label: `Chưa đọc${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 py-2 text-sm font-semibold rounded-[10px] transition cursor-pointer ${
-                  activeTab === tab.key
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-700'
+        <Tabs
+          tabs={tabs}
+          activeTab={activeFilter}
+          onChange={setActiveFilter}
+          variant="pills"
+        />
+      </div>
+
+      {/* Notifications List */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs divide-y divide-slate-100 dark:divide-slate-800/80">
+        {loading ? (
+          <div className="p-12 text-center text-xs text-slate-400">
+            Đang tải thông báo...
+          </div>
+        ) : filteredNotifs.length > 0 ? (
+          filteredNotifs.map((notif) => {
+            const notifId = notif.notificationId || notif.id;
+            const senderName =
+              notif.senderFullName || notif.senderUsername || 'Người dùng';
+            const avatar =
+              notif.senderAvatar ||
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+            const content = notif.message || 'Bạn có thông báo mới';
+            const timeStr = notif.createdAt
+              ? new Date(notif.createdAt).toLocaleString('vi-VN', {
+                  dateStyle: 'short',
+                  timeStyle: 'short',
+                })
+              : '';
+
+            return (
+              <div
+                key={notifId}
+                onClick={() => handleItemClick(notif)}
+                className={`flex items-center justify-between gap-4 p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition cursor-pointer group ${
+                  !notif.isRead ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
                 }`}
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Notification List */}
-        <div className="divide-y divide-slate-100">
-          {loading ? (
-            <>
-              <NotificationSkeleton />
-              <NotificationSkeleton />
-              <NotificationSkeleton />
-              <NotificationSkeleton />
-            </>
-          ) : notifications.length > 0 ? (
-            <AnimatePresence mode="popLayout">
-              {grouped.map(({ label, items }) => (
-                <div key={label}>
-                  {/* Day group label */}
-                  <div className="px-4 sm:px-6 py-2 bg-slate-50/80 border-y border-slate-100 sticky top-[52px] md:top-0 z-10">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
-                  </div>
-                  {items.map((notif, idx) => (
-                    <NotifRow
-                      key={notif.notificationId || notif.id || idx}
-                      notif={notif}
-                      onRead={handleRead}
-                      onDelete={handleDelete}
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  {/* Avatar with type badge */}
+                  <div className="relative shrink-0 mt-0.5">
+                    <img
+                      src={avatar}
+                      alt={senderName}
+                      className="w-11 h-11 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                     />
-                  ))}
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 shadow-xs border border-slate-200/80 dark:border-slate-800 flex items-center justify-center">
+                      {getNotifIcon(notif.type)}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-snug">
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {senderName}
+                      </span>{' '}
+                      {content}
+                    </p>
+                    <span className="text-[11px] text-slate-400 mt-1 block">
+                      {timeStr}
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </AnimatePresence>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-                <Bell size={28} className="text-slate-400" />
+
+                {/* Right side actions & unread dot */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {!notif.isRead && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 dark:bg-indigo-500" />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleDelete(e, notifId)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                    title="Xóa thông báo này"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <h3 className="font-semibold text-slate-800 mb-1.5">
-                {activeTab === 'unread' ? 'Không có thông báo chưa đọc' : 'Chưa có thông báo'}
-              </h3>
-              <p className="text-sm text-slate-500">
-                {activeTab === 'unread'
-                  ? 'Bạn đã đọc hết tất cả thông báo!'
-                  : 'Khi có người tương tác với bạn, thông báo sẽ hiện ở đây.'}
-              </p>
-            </div>
-          )}
-
-          {/* Infinite scroll sentinel */}
-          <div ref={bottomRef} className="h-4" />
-
-          {loadingMore && (
-            <div className="flex justify-center py-4">
-              <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
-            </div>
-          )}
-
-          {!loading && !hasMore && notifications.length > 0 && (
-            <p className="text-center py-6 text-xs text-slate-400 font-medium">
-              ✦ Bạn đã xem hết thông báo
+            );
+          })
+        ) : (
+          <div className="p-12 text-center text-slate-400">
+            <Bell className="w-10 h-10 mx-auto mb-2 stroke-[1.5] text-slate-300 dark:text-slate-700" />
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              Không có thông báo nào
             </p>
-          )}
-        </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Bạn đã xem hết tất cả thông báo
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default NotificationsPage;

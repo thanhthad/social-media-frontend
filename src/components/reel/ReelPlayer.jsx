@@ -19,6 +19,7 @@ import {
   Lock,
   Plus,
   Check,
+  Edit3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUser } from '../../contexts/UserContext';
@@ -29,6 +30,8 @@ import followService from '../../services/followService';
 import reportService from '../../services/reportService';
 import ReelCommentDrawer from './ReelCommentDrawer';
 import ReelShareModal from './ReelShareModal';
+import EditReelModal from './EditReelModal';
+import LoginPromptModal from '../common/LoginPromptModal';
 
 export default function ReelPlayer({
   reel,
@@ -36,6 +39,7 @@ export default function ReelPlayer({
   isMuted,
   onToggleMute,
   onReelDeleted,
+  onReelUpdated,
 }) {
   const { user: currentUser, currentUserId } = useUser();
   const { isAuthenticated } = useAuth();
@@ -63,6 +67,8 @@ export default function ReelPlayer({
   const [showShare, setShowShare] = useState(false);
   const [isExpandedText, setIsExpandedText] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Check saved status
   useEffect(() => {
@@ -160,8 +166,7 @@ export default function ReelPlayer({
   const handleDoubleTap = (e) => {
     if (!containerRef.current) return;
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thích Reel');
-      navigate('/login');
+      setShowLoginPrompt(true);
       return;
     }
     const rect = containerRef.current.getBoundingClientRect();
@@ -180,8 +185,7 @@ export default function ReelPlayer({
   // Toggle Love
   const handleToggleLove = async () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thích Reel');
-      navigate('/login');
+      setShowLoginPrompt(true);
       return;
     }
     // Optimistic UI
@@ -202,8 +206,7 @@ export default function ReelPlayer({
   // Toggle Save
   const handleToggleSave = async () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để lưu Reel');
-      navigate('/login');
+      setShowLoginPrompt(true);
       return;
     }
     try {
@@ -224,8 +227,7 @@ export default function ReelPlayer({
   // Handle Follow
   const handleToggleFollow = async () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để theo dõi người dùng');
-      navigate('/login');
+      setShowLoginPrompt(true);
       return;
     }
     if (!reel.userId || isOwner) return;
@@ -261,8 +263,7 @@ export default function ReelPlayer({
   const handleReportReel = async () => {
     setShowMenu(false);
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để báo cáo Reel');
-      navigate('/login');
+      setShowLoginPrompt(true);
       return;
     }
     const reason = window.prompt('Nhập lý do báo cáo video này:');
@@ -365,13 +366,25 @@ export default function ReelPlayer({
             {showMenu && (
               <div className="absolute right-0 top-10 w-44 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl py-2 z-50 border border-gray-100 text-gray-800 animate-in fade-in zoom-in-95 duration-150">
                 {isOwner ? (
-                  <button
-                    onClick={handleDeleteReel}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition"
-                  >
-                    <Trash2 size={16} />
-                    <span>Xóa Reel này</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        setShowEditModal(true);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition"
+                    >
+                      <Edit3 size={16} />
+                      <span>Chỉnh sửa Reel</span>
+                    </button>
+                    <button
+                      onClick={handleDeleteReel}
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition"
+                    >
+                      <Trash2 size={16} />
+                      <span>Xóa Reel này</span>
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={handleReportReel}
@@ -588,6 +601,27 @@ export default function ReelPlayer({
         reel={reel}
         onShareSuccess={() => setShareCount((prev) => prev + 1)}
       />
+
+      {/* Login Prompt Modal */}
+      <LoginPromptModal
+        isOpen={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        title="Tương tác video Reel"
+        message={`Đăng nhập để thả tim, lưu video hoặc theo dõi @${reel.username || 'nhà sáng tạo'}.`}
+      />
+
+      {/* Edit Reel Modal */}
+      {showEditModal && (
+        <EditReelModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          reel={reel}
+          onReelUpdated={(updatedData) => {
+            Object.assign(reel, updatedData);
+            if (onReelUpdated) onReelUpdated(updatedData);
+          }}
+        />
+      )}
     </div>
   );
 }

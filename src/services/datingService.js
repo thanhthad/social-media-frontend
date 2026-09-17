@@ -138,14 +138,25 @@ export const datingService = {
   },
 
   // ==========================================
+  // DISCOVERY APIS
+  // ==========================================
+  getDiscovery: async (page = 0, size = 20) => {
+    const response = await axiosClient.get(`${DATING_API_PREFIX}/discovery`, {
+      params: { page, size },
+    });
+    return response.data;
+  },
+
+  // ==========================================
   // SWIPE APIS
   // ==========================================
   
-  // Create a swipe (action: LIKE, DISLIKE, SUPER_LIKE)
+  // Create a swipe (action: LIKE, DISLIKE)
   swipe: async (targetUserId, swipeAction) => {
+    const action = swipeAction === 'PASS' ? 'DISLIKE' : swipeAction;
     const response = await axiosClient.post(`${DATING_API_PREFIX}/swipes`, {
       targetUserId: Number(targetUserId),
-      action: swipeAction,
+      action: action,
     });
     return response.data;
   },

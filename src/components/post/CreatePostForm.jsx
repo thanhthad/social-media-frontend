@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image, X, Send } from 'lucide-react';
+import { Image, X, Send, Film } from 'lucide-react';
 import { useUser } from '../../contexts/UserContext';
 import postService from '../../services/postService';
 import toast from 'react-hot-toast';

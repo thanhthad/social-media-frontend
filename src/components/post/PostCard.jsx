@@ -1,703 +1,990 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useUser } from '../../contexts/UserContext';
-import { useAuth } from '../../contexts/AuthContext';
-import reactionService from '../../services/reactionService';
-import postService from '../../services/postService';
-import savedPostService from '../../services/savedPostService';
-import reportService from '../../services/reportService';
-import toast from 'react-hot-toast';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bookmark,
-  MoreHorizontal,
-  Flag,
+  Heart,
   MessageCircle,
   Share2,
-  Trash2,
-  Edit3,
+  Bookmark,
+  MoreHorizontal,
   Globe,
   Users,
   Lock,
-  Heart,
+  Send,
+  Trash2,
+  Edit3,
+  Flag,
+  CornerDownRight,
+  Smile,
+  X,
+  ShieldAlert,
+  Image as ImageIcon,
+  Plus,
+  Loader2,
 } from 'lucide-react';
-import CommentSection from './CommentSection';
+import toast from 'react-hot-toast';
+import { useUser } from '../../contexts/UserContext';
+import { useAuth } from '../../contexts/AuthContext';
+import reactionService from '../../services/reactionService';
+import commentService from '../../services/commentService';
+import commentReactionService from '../../services/commentReactionService';
+import savedPostService from '../../services/savedPostService';
+import postService from '../../services/postService';
+import reportService from '../../services/reportService';
 import ReactionPicker, { REACTION_ICONS } from './ReactionPicker';
 import ReactedUsersModal from './ReactedUsersModal';
-import { AnimatePresence, motion } from 'framer-motion';
+import LoginPromptModal from '../common/LoginPromptModal';
 
-export default function PostCard({
-  post,
-  onPostDeleted,
-  onPostUpdated,
-  initialShowComments = false,
-}) {
-  const { user: currentUser, currentUserId } = useUser();
+export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) => {
+  const { currentUserId } = useUser();
   const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  // Use currentUserId from context (already normalised there)
-  const postUid = post.userId ?? post.authorId ?? post.user?.id;
-  const isOwner = !!(currentUserId && postUid && Number(currentUserId) === Number(postUid));
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const postId = post.id || post.postId;
 
-  const [myReaction, setMyReaction] = useState(
-    post.myReactionType || post.myReaction || (post.reacted ? 'LIKE' : null)
+  // Normalized author & media
+  const authorName = post.username || post.author?.name || `Người dùng #${post.userId || ''}`;
+  const authorAvatar = post.authorAvatar || post.avatarUrl || post.author?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+  const authorId = post.userId || post.author?.id;
+  const isOwner = currentUserId && String(currentUserId) === String(authorId);
+
+  // Post Data States (Mutable on edit)
+  const [content, setContent] = useState(post.content || '');
+  const [visibility, setVisibility] = useState(post.visibility || 'PUBLIC');
+  const [mediaItems, setMediaItems] = useState(
+    post.postMediaResponses || (post.images ? post.images.map((url, i) => ({ postMediaId: `img-${i}`, url })) : [])
   );
-  const [totalReactions, setTotalReactions] = useState(
-    Number(post.reactionCount ?? post.totalReactions ?? 0)
-  );
-  const [totalComments, setTotalComments] = useState(
-    Number(post.commentCount ?? post.totalComments ?? 0)
-  );
-  const [showComments, setShowComments] = useState(initialShowComments);
-  const [isSaved, setIsSaved] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  const [showHeartPop, setShowHeartPop] = useState(false);
+
+  // Interaction States
+  const [isLiked, setIsLiked] = useState(Boolean(post.reacted || post.isLiked));
+  const [reactionType, setReactionType] = useState(post.myReactionType || (isLiked ? 'LOVE' : null));
+  const [reactionCount, setReactionCount] = useState(Number(post.reactionCount || post.likesCount || 0));
+  const [isSaved, setIsSaved] = useState(Boolean(post.isSaved));
+  const [showReactionBar, setShowReactionBar] = useState(false);
   const [showReactedModal, setShowReactedModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+
+  // Comments
+  const [showComments, setShowComments] = useState(initialShowComments);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [replyTo, setReplyTo] = useState(null); // { id, authorName }
+  const [totalComments, setTotalComments] = useState(Number(post.commentCount || post.commentsCount || 0));
+
+  // Comment Editing States
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false);
+
+  // Edit Post Modal
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || '');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [postVisibility, setPostVisibility] = useState(post.visibility || 'PUBLIC');
+  const [editVisibility, setEditVisibility] = useState(post.visibility || 'PUBLIC');
+  const [newFiles, setNewFiles] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const menuRef = useRef(null);
-  const pickerTimerRef = useRef(null);
+  // Report Modal
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
-  // Sync state with post response fields
+  // Check saved status on mount
   useEffect(() => {
-    setTotalReactions(Number(post.reactionCount ?? post.totalReactions ?? 0));
-    setTotalComments(Number(post.commentCount ?? post.totalComments ?? 0));
-    setMyReaction(post.myReactionType || post.myReaction || (post.reacted ? 'LIKE' : null));
-  }, [post.id, post.reactionCount, post.totalReactions, post.commentCount, post.totalComments, post.myReactionType, post.myReaction, post.reacted]);
-
-  // Only check saved status for posts that are NOT ours when authenticated
-  useEffect(() => {
-    if (isAuthenticated && post?.id && !isOwner) {
+    if (postId && isAuthenticated) {
       savedPostService
-        .checkSavedStatus(post.id)
-        .then((res) => setIsSaved(!!(res.data?.data ?? res.data)))
+        .checkSavedStatus(postId)
+        .then((res) => {
+          if (res.data?.data !== undefined) {
+            setIsSaved(Boolean(res.data.data));
+          }
+        })
         .catch(() => {});
     }
-  }, [isAuthenticated, post?.id, isOwner]);
+  }, [postId, isAuthenticated]);
+
+  // Load root comments when opened
+  const fetchComments = useCallback(async () => {
+    if (!postId) return;
+    setLoadingComments(true);
+    try {
+      const res = await commentService.getRootComments(postId, 0, 50);
+      const data = res.data?.data?.content || res.data?.data || [];
+      setComments(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.warn('Failed to load comments', e?.message);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [postId]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (showComments && comments.length === 0) {
+      fetchComments();
+    }
+  }, [showComments, fetchComments, comments.length]);
 
-  const handleToggleSave = async () => {
-    if (!isAuthenticated) {
-      setShowMenu(false);
-      toast.error('Vui lòng đăng nhập để lưu bài viết');
-      navigate('/login');
-      return;
-    }
-    try {
-      if (isSaved) {
-        await savedPostService.unsavePost(post.id);
-        setIsSaved(false);
-        toast.success('Đã bỏ lưu bài viết');
-      } else {
-        await savedPostService.savePost(post.id);
-        setIsSaved(true);
-        toast.success('Đã lưu bài viết');
-      }
-    } catch (error) {
-      toast.error('Có lỗi xảy ra khi lưu bài viết');
-    }
-    setShowMenu(false);
-  };
-
-  const handleReport = async () => {
-    setShowMenu(false);
-    if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để báo cáo bài viết');
-      navigate('/login');
-      return;
-    }
-    const reason = window.prompt('Nhập lý do báo cáo bài viết vi phạm:');
-    if (reason && reason.trim()) {
-      try {
-        await reportService.reportPost(post.id, reason.trim());
-        toast.success('Đã gửi báo cáo vi phạm tới ban quản trị!');
-      } catch (error) {
-        toast.error('Lỗi khi gửi báo cáo');
-      }
-    }
-  };
-
+  // Reaction handling
   const handleSelectReaction = async (type) => {
-    setShowPicker(false);
+    setShowReactionBar(false);
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thích bài viết');
-      navigate('/login');
+      setShowLoginModal(true);
       return;
     }
-    const wasReacted = !!myReaction;
-    const isRemoving = myReaction === type;
-
-    // Optimistic UI (+1 / -1)
-    if (isRemoving) {
-      setMyReaction(null);
-      setTotalReactions((prev) => Math.max(0, prev - 1));
-    } else {
-      setMyReaction(type);
-      if (!wasReacted) {
-        setTotalReactions((prev) => prev + 1);
-      }
-    }
-
     try {
-      const res = await reactionService.reactToPost(post.id, type);
-      const serverCount = res.data?.data?.reactionCount;
-      if (serverCount !== undefined && serverCount !== null) {
-        setTotalReactions(Number(serverCount));
-      }
-    } catch (error) {
-      console.error('Failed to react to post', error);
-      // Revert if error
-      if (isRemoving) {
-        setMyReaction(type);
-        setTotalReactions((prev) => prev + 1);
+      const res = await reactionService.reactToPost(postId, type);
+      const data = res.data?.data;
+      if (data?.isReacted) {
+        setIsLiked(true);
+        setReactionType(data.reactionType || type);
+        setReactionCount((prev) => (isLiked ? prev : prev + 1));
+        toast.success(`Đã bày tỏ ${REACTION_ICONS[type]?.label || type}`);
       } else {
-        setMyReaction(wasReacted ? myReaction : null);
-        if (!wasReacted) {
-          setTotalReactions((prev) => Math.max(0, prev - 1));
-        }
+        // Toggled off
+        setIsLiked(false);
+        setReactionType(null);
+        setReactionCount((prev) => Math.max(0, prev - 1));
+        toast('Đã gỡ cảm xúc');
       }
+    } catch (e) {
+      toast.error('Lỗi khi bày tỏ cảm xúc');
     }
   };
 
-  const handleDoubleClickMedia = (e) => {
-    if (e) e.stopPropagation();
+  const handleQuickLike = () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thích bài viết');
-      navigate('/login');
+      setShowLoginModal(true);
       return;
     }
-    setShowHeartPop(true);
-    setTimeout(() => setShowHeartPop(false), 900);
-    if (myReaction !== 'LOVE') {
-      handleSelectReaction('LOVE');
-    }
-  };
-
-  const renderReactionIcon = () => {
-    if (!myReaction) {
-      return <Heart size={24} className="hover:text-gray-500 transition active:scale-90" />;
-    }
-    if (myReaction === 'LOVE') {
-      return <Heart size={24} className="fill-rose-500 text-rose-500 active:scale-90 animate-bounce" />;
-    }
-    const info = REACTION_ICONS[myReaction];
-    if (info?.iconUrl) {
-      return (
-        <img
-          src={info.iconUrl}
-          alt={info.label}
-          className="w-6 h-6 object-contain active:scale-90 drop-shadow-xs"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      );
-    }
-    return <span className="text-xl leading-none">{info?.emoji || '👍'}</span>;
-  };
-
-  const handleMainButtonClick = () => {
-    if (myReaction) {
-      handleSelectReaction(myReaction);
+    if (isLiked) {
+      handleSelectReaction(reactionType || 'LIKE');
     } else {
       handleSelectReaction('LIKE');
     }
   };
 
-  const handleDelete = async () => {
-    setShowMenu(false);
-    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) {
-      try {
-        await postService.deletePost(post.id);
-        toast.success('Đã xóa bài viết');
-        if (onPostDeleted) onPostDeleted(post.id);
-      } catch (error) {
-        toast.error('Lỗi khi xóa bài viết');
+  // Save handling
+  const handleToggleSave = async () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    try {
+      if (isSaved) {
+        await savedPostService.unsavePost(postId);
+        setIsSaved(false);
+        toast.success('Đã bỏ lưu bài viết');
+      } else {
+        await savedPostService.savePost(postId);
+        setIsSaved(true);
+        toast.success('Đã lưu vào bộ sưu tập');
       }
+    } catch (e) {
+      toast.error('Lỗi lưu bài viết');
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!editContent.trim()) return;
-    setIsSavingEdit(true);
+  // Comment submit
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!commentText.trim()) return;
     try {
-      await postService.updatePostContent(post.id, { content: editContent.trim() });
-      post.content = editContent.trim();
-      setIsEditing(false);
-      toast.success('Đã cập nhật bài viết');
-      if (onPostUpdated) onPostUpdated();
-    } catch (err) {
-      toast.error('Không thể cập nhật bài viết');
+      await commentService.createComment(postId, commentText.trim(), replyTo?.id || null);
+      setCommentText('');
+      setReplyTo(null);
+      setTotalComments((c) => c + 1);
+      toast.success('Đã gửi bình luận');
+      fetchComments();
+    } catch (e) {
+      toast.error('Không thể đăng bình luận');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này không?')) return;
+    try {
+      await commentService.deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => (c.id || c.commentId) !== commentId));
+      setTotalComments((c) => Math.max(0, c - 1));
+      toast.success('Đã xóa bình luận');
+    } catch (e) {
+      toast.error('Không thể xóa bình luận');
+    }
+  };
+
+  const handleSaveCommentEdit = async (commentId) => {
+    if (!editingCommentText.trim()) return;
+    setIsUpdatingComment(true);
+    try {
+      await commentService.updateComment(commentId, editingCommentText.trim());
+      setComments((prev) =>
+        prev.map((c) => {
+          const id = c.id || c.commentId;
+          if (id === commentId) {
+            return { ...c, content: editingCommentText.trim() };
+          }
+          return c;
+        })
+      );
+      setEditingCommentId(null);
+      setEditingCommentText('');
+      toast.success('Đã cập nhật bình luận!');
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Không thể cập nhật bình luận');
     } finally {
-      setIsSavingEdit(false);
+      setIsUpdatingComment(false);
     }
   };
 
-  const handleChangeVisibility = async (newVis) => {
+  const handleReactComment = async (commentId, type = 'LIKE') => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
     try {
-      await postService.updatePostVisibility(post.id, newVis);
-      setPostVisibility(newVis);
-      post.visibility = newVis;
-      toast.success('Đã đổi quyền riêng tư');
-      setShowMenu(false);
-    } catch (err) {
-      toast.error('Không thể thay đổi quyền riêng tư');
+      await commentReactionService.reactToComment(commentId, type);
+      fetchComments();
+    } catch (e) {
+      toast.error('Lỗi thả cảm xúc bình luận');
     }
   };
 
-  const timeAgo = (date) => {
-    if (!date) return '';
-    const diffInSeconds = Math.floor((new Date() - new Date(date)) / 1000);
-    if (diffInSeconds < 60) return 'Vừa xong';
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} giờ trước`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} ngày trước`;
-    return new Date(date).toLocaleDateString('vi-VN');
+  // Post Actions
+  const handleOpenEditModal = () => {
+    setEditContent(content);
+    setEditVisibility(visibility);
+    setNewFiles([]);
+    setNewPreviews([]);
+    setIsEditing(true);
+    setShowMoreMenu(false);
   };
 
-  const getVisibilityBadge = (vis) => {
-    switch (vis) {
-      case 'PUBLIC':
-        return <Globe size={13} className="text-gray-400" title="Công khai" />;
-      case 'FRIEND':
-      case 'FRIENDS':
-      case 'FOLLOWERS_ONLY':
-        return <Users size={13} className="text-gray-400" title="Bạn bè" />;
-      case 'PRIVATE':
-        return <Lock size={13} className="text-gray-400" title="Chỉ mình tôi" />;
-      default:
-        return <Globe size={13} className="text-gray-400" />;
+  const handleDeleteExistingMedia = async (mediaId) => {
+    if (!mediaId || String(mediaId).startsWith('img-')) {
+      setMediaItems((prev) => prev.filter((m) => m.postMediaId !== mediaId));
+      return;
+    }
+    if (!window.confirm('Bạn có chắc muốn xóa ảnh này khỏi bài viết?')) return;
+    try {
+      await postService.deletePostMedia(mediaId);
+      setMediaItems((prev) => prev.filter((m) => m.postMediaId !== mediaId));
+      toast.success('Đã xóa ảnh khỏi bài viết');
+    } catch (e) {
+      toast.error('Không thể xóa ảnh');
     }
   };
 
-  const renderContentWithHashtags = (text) => {
-    if (!text) return null;
-    const parts = text.split(/(#[^\s#]+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('#') && part.length > 1) {
-        return (
-          <Link
-            key={i}
-            to={`/search?q=${encodeURIComponent(part.substring(1))}&type=tag`}
-            className="text-blue-600 font-semibold hover:underline"
-          >
-            {part}
-          </Link>
-        );
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setNewFiles((prev) => [...prev, ...files]);
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setNewPreviews((prev) => [...prev, ...previews]);
+  };
+
+  const handleRemoveNewFile = (index) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdatePost = async (e) => {
+    e.preventDefault();
+    setIsSavingPost(true);
+    try {
+      if (editContent !== content) {
+        await postService.updatePostContent(postId, { content: editContent });
+        setContent(editContent);
+        post.content = editContent;
       }
-      return part;
-    });
+      if (editVisibility !== visibility) {
+        await postService.updatePostVisibility(postId, editVisibility);
+        setVisibility(editVisibility);
+        post.visibility = editVisibility;
+      }
+      if (newFiles.length > 0) {
+        await postService.addPostMedia(postId, newFiles);
+        try {
+          const res = await postService.getPostById(postId);
+          const freshMedia = res.data?.data?.postMediaResponses;
+          if (Array.isArray(freshMedia)) {
+            setMediaItems(freshMedia);
+            post.postMediaResponses = freshMedia;
+          }
+        } catch (_) {}
+      }
+      setIsEditing(false);
+      setNewFiles([]);
+      setNewPreviews([]);
+      toast.success('Đã cập nhật bài viết thành công!');
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Không thể cập nhật bài viết');
+    } finally {
+      setIsSavingPost(false);
+    }
   };
 
-  const mediaList = post.postMediaResponses || post.medias || [];
-  const currentReactionInfo = myReaction ? REACTION_ICONS[myReaction] : null;
+  const handleDeletePost = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) return;
+    try {
+      await postService.deletePost(postId);
+      toast.success('Đã xóa bài viết');
+      if (onPostDeleted) onPostDeleted();
+    } catch (e) {
+      toast.error('Không thể xóa bài viết');
+    }
+  };
 
-  // Build emoji summary for reaction count display
-  // Use top reactions from post data if available, otherwise show generic icons
-  const topReactionEmojis = (() => {
-    const reactionData = post.reactionCounts || post.reactions || {};
-    const types = Object.entries(reactionData)
-      .filter(([, count]) => count > 0)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([type]) => REACTION_ICONS[type]?.emoji)
-      .filter(Boolean);
-    return types.length > 0 ? types : totalReactions > 0 ? ['👍'] : [];
-  })();
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!reportReason.trim() || reportReason.trim().length < 5) {
+      toast.error('Vui lòng nhập lý do tối thiểu 5 ký tự');
+      return;
+    }
+    try {
+      await reportService.createReport(postId, reportReason.trim());
+      setIsReporting(false);
+      setReportReason('');
+      toast.success('Đã gửi báo cáo vi phạm');
+    } catch (e) {
+      toast.error('Không thể gửi báo cáo');
+    }
+  };
 
-  // --- Show more/less for long captions ---
-  const CAPTION_LIMIT = 200;
-  const [showFullCaption, setShowFullCaption] = useState(false);
-  const captionText = post.content || '';
-  const isCaptionLong = captionText.length > CAPTION_LIMIT;
-  const displayCaption = showFullCaption || !isCaptionLong
-    ? captionText
-    : captionText.slice(0, CAPTION_LIMIT).trimEnd();
+  const activeReactionInfo = reactionType ? REACTION_ICONS[reactionType] : null;
 
   return (
-    <div className="bg-white rounded-2xl mb-3 overflow-hidden border border-slate-200 shadow-card hover:shadow-card-hover transition-shadow duration-200">
+    <article className="relative bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/90 rounded-3xl p-4 sm:p-5 shadow-xs hover:border-slate-300/80 dark:hover:border-slate-700/80 transition-all duration-300 mb-5">
       {/* 1. Header */}
-      <div className="px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to={`/users/${post.userId || post.authorId}`} className="relative group select-none">
-            <div className="p-[2px] rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-pink-500 shadow-xs">
-              <div className="p-[1.5px] bg-white rounded-full">
-                <img
-                  src={post.avatarUrl || 'https://via.placeholder.com/40'}
-                  alt=""
-                  className="w-9 h-9 rounded-full object-cover"
-                />
-              </div>
-            </div>
-          </Link>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <Link
-                to={`/users/${post.userId || post.authorId}`}
-                className="font-bold text-gray-900 text-xs sm:text-sm hover:opacity-80 transition"
-              >
-                {post.authorName || post.username || 'user'}
-              </Link>
-              <span className="text-gray-400 text-xs">•</span>
-              <span className="text-xs text-gray-500 font-normal">{timeAgo(post.createdAt)}</span>
+      <div className="flex items-center justify-between gap-3 mb-3.5">
+        <Link to={`/profile/${authorId || ''}`} className="flex items-center gap-3 group min-w-0">
+          <img
+            src={authorAvatar}
+            alt={authorName}
+            className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-indigo-600/40 transition"
+          />
+          <div className="min-w-0">
+            <span className="text-sm font-bold text-slate-900 dark:text-white truncate block group-hover:text-indigo-600 transition">
+              {authorName}
+            </span>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span>{post.createdAt ? new Date(post.createdAt).toLocaleDateString('vi-VN') : 'Gần đây'}</span>
+              <span>•</span>
+              {visibility === 'FRIEND' ? (
+                <Users className="w-3 h-3 text-slate-400" title="Bạn bè" />
+              ) : visibility === 'PRIVATE' ? (
+                <Lock className="w-3 h-3 text-slate-400" title="Chỉ mình tôi" />
+              ) : (
+                <Globe className="w-3 h-3 text-slate-400" title="Công khai" />
+              )}
             </div>
           </div>
-        </div>
+        </Link>
 
-        {/* 3-dot Menu */}
-        <div className="relative" ref={menuRef}>
+        {/* More Actions Menu */}
+        <div className="relative">
           <button
             type="button"
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-600 transition cursor-pointer"
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
           >
-            <MoreHorizontal size={18} />
+            <MoreHorizontal className="w-5 h-5" />
           </button>
 
-          {showMenu && (
-            <div className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl py-1.5 border border-gray-100 z-30 text-xs">
-              {!isOwner && (
-                <button
-                  onClick={handleToggleSave}
-                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2.5 text-gray-700 font-medium transition cursor-pointer"
-                >
-                  <Bookmark
-                    size={16}
-                    className={isSaved ? 'fill-black text-black' : 'text-gray-400'}
-                  />
-                  {isSaved ? 'Bỏ lưu bài viết' : 'Lưu bài viết'}
-                </button>
-              )}
-
+          {showMoreMenu && (
+            <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-dropdown p-1.5 z-30 animate-scale-in">
               <button
-                onClick={handleReport}
-                className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2.5 text-gray-700 font-medium transition cursor-pointer"
+                type="button"
+                onClick={() => {
+                  handleToggleSave();
+                  setShowMoreMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left"
               >
-                <Flag size={16} className="text-gray-400" />
-                Báo cáo bài viết
+                <Bookmark className="w-3.5 h-3.5" />
+                <span>{isSaved ? 'Bỏ lưu bài viết' : 'Lưu bài viết'}</span>
               </button>
 
-              {isOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText?.(window.location.origin + `/posts/${postId}`);
+                  toast.success('Đã sao chép liên kết');
+                  setShowMoreMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Sao chép liên kết</span>
+              </button>
+
+              {isOwner ? (
                 <>
-                  <hr className="my-1 border-gray-100" />
                   <button
-                    onClick={() => {
-                      setIsEditing(true);
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2.5 text-gray-700 font-medium transition cursor-pointer"
+                    type="button"
+                    onClick={handleOpenEditModal}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl text-left"
                   >
-                    <Edit3 size={16} className="text-gray-400" />
-                    Chỉnh sửa
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Chỉnh sửa bài viết</span>
                   </button>
-
-                  <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase">
-                    Quyền riêng tư
-                  </div>
-                  {['PUBLIC', 'FRIEND', 'PRIVATE'].map((vis) => (
-                    <button
-                      key={vis}
-                      onClick={() => handleChangeVisibility(vis)}
-                      className={`w-full text-left px-4 py-1.5 hover:bg-gray-50 flex items-center gap-2 cursor-pointer ${
-                        postVisibility === vis ? 'text-blue-600 font-bold' : 'text-gray-600'
-                      }`}
-                    >
-                      {getVisibilityBadge(vis)}
-                      <span>
-                        {vis === 'PUBLIC'
-                          ? 'Công khai'
-                          : vis === 'FRIEND'
-                          ? 'Bạn bè'
-                          : 'Chỉ mình tôi'}
-                      </span>
-                    </button>
-                  ))}
-
-                  <hr className="my-1 border-gray-100" />
                   <button
-                    onClick={handleDelete}
-                    className="w-full text-left px-4 py-2.5 hover:bg-red-50 flex items-center gap-2.5 text-red-600 font-medium transition cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      handleDeletePost();
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl text-left"
                   >
-                    <Trash2 size={16} />
-                    Xóa bài viết
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Xóa bài viết</span>
                   </button>
                 </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    if (!isAuthenticated) {
+                      setShowLoginModal(true);
+                      return;
+                    }
+                    setIsReporting(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-left"
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>Báo cáo bài viết</span>
+                </button>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* 2. Media Container */}
-      {mediaList.length > 0 && (
-        <div
-          onDoubleClick={handleDoubleClickMedia}
-          className={`relative grid gap-0.5 bg-slate-900 overflow-hidden select-none cursor-pointer ${
-            mediaList.length === 1
-              ? 'grid-cols-1 max-h-[600px]'
-              : mediaList.length === 2
-              ? 'grid-cols-2 max-h-[420px]'
-              : 'grid-cols-2 max-h-[480px]'
-          }`}
-        >
-          {/* Double-tap Heart Animation */}
-          <AnimatePresence>
-            {showHeartPop && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [0, 1.3, 1, 1.1, 0], opacity: [0, 1, 1, 0.9, 0] }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
-              >
-                <Heart size={96} className="fill-rose-500 text-rose-500 drop-shadow-[0_8px_24px_rgba(244,63,94,0.65)]" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {/* 2. Text Content */}
+      <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-3.5 whitespace-pre-line">
+        {content}
+      </div>
 
-          {mediaList.map((media, idx) => {
-            const url = media.mediaUrl || media.url;
-            const isVideo = media.mediaType === 'VIDEO';
-            return (
-              <div key={media.id || idx} className="relative w-full h-full min-h-[240px] overflow-hidden bg-slate-900 flex items-center justify-center">
-                {isVideo ? (
-                  <video src={url} controls className="w-full h-full object-contain max-h-[580px]" />
-                ) : (
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                )}
-              </div>
-            );
-          })}
+      {/* 3. Media Grid */}
+      {mediaItems.length > 0 && (
+        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+          {mediaItems.length === 1 ? (
+            <img
+              src={mediaItems[0].url || mediaItems[0]}
+              alt="Media"
+              className="w-full max-h-[500px] object-cover"
+            />
+          ) : (
+            <div className={`grid gap-1 ${mediaItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
+              {mediaItems.map((m, i) => (
+                <img
+                  key={m.postMediaId || i}
+                  src={m.url || m}
+                  alt={`Media ${i}`}
+                  className="w-full h-48 object-cover hover:brightness-95 transition"
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 3. Action Bar */}
-      <div className="px-4 pt-2.5 pb-1 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          {/* Heart / Like Button */}
-          <div
-            className="relative"
-            onMouseEnter={() => {
-              pickerTimerRef.current = setTimeout(() => setShowPicker(true), 300);
-            }}
-            onMouseLeave={() => {
-              if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current);
-              setShowPicker(false);
-            }}
-          >
-            <AnimatePresence>
-              {showPicker && (
-                <ReactionPicker
-                  onSelect={handleSelectReaction}
-                  onClose={() => setShowPicker(false)}
-                />
-              )}
-            </AnimatePresence>
+      {/* 4. Reaction Statistics Bar */}
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 py-2 border-b border-slate-100 dark:border-slate-800 mb-2">
+        <button
+          type="button"
+          onClick={() => setShowReactedModal(true)}
+          className="flex items-center gap-1.5 hover:underline text-slate-700 dark:text-slate-300 font-semibold"
+        >
+          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[10px]">
+            ❤️
+          </span>
+          <span>{reactionCount} lượt cảm xúc</span>
+        </button>
 
-            <button
-              type="button"
-              onClick={handleMainButtonClick}
-              className="text-gray-900 hover:opacity-80 transition cursor-pointer px-1.5 py-1 rounded-xl hover:bg-gray-100/80 flex items-center gap-1.5 select-none"
-              title="Bày tỏ cảm xúc"
-            >
-              {renderReactionIcon()}
-              <span className="font-extrabold text-sm text-gray-900 leading-none">
-                {Number(totalReactions ?? 0).toLocaleString()}
-              </span>
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={() => setShowComments(!showComments)}
+          className="hover:underline hover:text-slate-700 dark:text-slate-400"
+        >
+          {totalComments} bình luận
+        </button>
+      </div>
 
-          {/* Comment Icon with Count */}
+      {/* 5. Action Row */}
+      <div className="relative flex items-center justify-between pt-1">
+        {/* Floating Reaction Picker */}
+        <AnimatePresence>
+          {showReactionBar && (
+            <ReactionPicker
+              onSelect={handleSelectReaction}
+              onClose={() => setShowReactionBar(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Reaction Trigger Button */}
+        <div
+          onMouseEnter={() => {
+            hoverTimeoutRef.current = setTimeout(() => setShowReactionBar(true), 300);
+          }}
+          onMouseLeave={() => {
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+          }}
+        >
           <button
             type="button"
-            onClick={handleToggleComments}
-            className="text-gray-900 hover:opacity-80 transition cursor-pointer px-1.5 py-1 rounded-xl hover:bg-gray-100/80 flex items-center gap-1.5 select-none"
-            title="Bình luận"
+            onClick={handleQuickLike}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+              isLiked
+                ? activeReactionInfo?.color || 'text-rose-600 bg-rose-50'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
           >
-            <MessageCircle size={24} className="hover:text-gray-600 transition" />
-            <span className="font-extrabold text-sm text-gray-900 leading-none">
-              {Number(totalComments ?? 0).toLocaleString()}
-            </span>
-          </button>
-
-          {/* Share / Copy Link Icon */}
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
-              toast.success('Đã sao chép liên kết!');
-            }}
-            className="text-gray-900 hover:opacity-60 transition cursor-pointer p-0.5"
-            title="Chia sẻ"
-          >
-            <Share2 size={24} />
+            {activeReactionInfo ? (
+              <span className="text-sm leading-none">{activeReactionInfo.emoji}</span>
+            ) : (
+              <Heart className="w-4 h-4 stroke-[1.8]" />
+            )}
+            <span>{activeReactionInfo ? activeReactionInfo.label : 'Thích'}</span>
           </button>
         </div>
 
-        {/* Bookmark / Save Icon */}
+        {/* Comment Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowComments(!showComments)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          <MessageCircle className="w-4 h-4 stroke-[1.8]" />
+          <span>Bình luận</span>
+        </button>
+
+        {/* Share Button */}
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText?.(window.location.origin + `/posts/${postId}`);
+            toast.success('Đã sao chép liên kết');
+          }}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          <Share2 className="w-4 h-4 stroke-[1.8]" />
+          <span>Chia sẻ</span>
+        </button>
+
+        {/* Save Button */}
         <button
           type="button"
           onClick={handleToggleSave}
-          className="text-gray-900 hover:opacity-60 transition cursor-pointer p-0.5"
-          title={isSaved ? 'Bỏ lưu' : 'Lưu bài viết'}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+            isSaved
+              ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/30'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
         >
-          <Bookmark
-            size={24}
-            className={isSaved ? 'fill-black text-black' : 'hover:text-gray-500'}
-          />
+          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : 'stroke-[1.8]'}`} />
+          <span className="hidden sm:inline">{isSaved ? 'Đã lưu' : 'Lưu'}</span>
         </button>
       </div>
 
-      {/* 4. Instagram Likes & Comments Summary */}
-      <div className="px-4 py-1 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          {totalReactions > 0 && (
+      {/* 6. Comments Drawer */}
+      {showComments && (
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3.5">
+          {/* Reply Context Banner */}
+          {replyTo && (
+            <div className="flex items-center justify-between text-xs bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-xl">
+              <span>Đang trả lời: <strong>{replyTo.authorName}</strong></span>
+              <button onClick={() => setReplyTo(null)} className="hover:text-indigo-900">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Comment Input */}
+          {isAuthenticated ? (
+            <form onSubmit={handleCommentSubmit} className="flex items-center gap-2.5">
+              <div className="flex-1 relative flex items-center">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={replyTo ? `Trả lời @${replyTo.authorName}...` : 'Viết bình luận công khai...'}
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700/80 rounded-full pl-3.5 pr-10 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className="absolute right-1.5 p-1.5 text-indigo-600 hover:text-indigo-700 disabled:opacity-40 transition"
+                >
+                  <Send className="w-3.5 h-3.5 stroke-[2]" />
+                </button>
+              </div>
+            </form>
+          ) : (
             <div
-              className="flex -space-x-1 items-center select-none cursor-pointer"
-              onClick={handleOpenReactedModal}
-              title="Xem danh sách người bày tỏ cảm xúc"
+              onClick={() => setShowLoginModal(true)}
+              className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-xs text-slate-500 hover:bg-slate-200/70 dark:hover:bg-slate-800 cursor-pointer transition select-none"
             >
-              <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center ring-1.5 ring-white shadow-xs">
-                ❤️
-              </span>
-              <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] flex items-center justify-center ring-1.5 ring-white shadow-xs">
-                👍
+              <span>Đăng nhập để tham gia bình luận cùng mọi người...</span>
+              <span className="font-bold text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 shadow-xs">
+                Đăng nhập
               </span>
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleOpenReactedModal}
-            className="font-bold text-xs sm:text-sm text-gray-900 hover:underline cursor-pointer"
-          >
-            {totalReactions > 0 ? `${totalReactions.toLocaleString()} lượt thích` : 'Hãy là người đầu tiên thích bài viết'}
-          </button>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleToggleComments}
-          className="text-gray-500 hover:text-gray-900 font-medium hover:underline cursor-pointer"
-        >
-          {totalComments > 0 ? `${totalComments.toLocaleString()} bình luận` : '0 bình luận'}
-        </button>
-      </div>
+          {/* Comments List */}
+          {loadingComments ? (
+            <p className="text-xs text-slate-400 text-center py-2">Đang tải bình luận...</p>
+          ) : comments.length > 0 ? (
+            <div className="space-y-3 pt-1">
+              {comments.map((comment) => {
+                const cId = comment.id || comment.commentId;
+                const cAuthorName = comment.username || comment.author?.name || `User #${comment.userId}`;
+                const cAvatar = comment.avatarUrl || comment.author?.avatar || 'https://via.placeholder.com/40';
+                const isCommentOwner = currentUserId && String(currentUserId) === String(comment.userId || comment.author?.id);
 
-      {/* 5. Caption & Content */}
-      <div className="px-4 pt-1 pb-2 text-sm leading-relaxed text-slate-900">
-        {isEditing ? (
-          <div className="space-y-2 py-2">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none resize-none h-20 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg transition cursor-pointer font-medium"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={isSavingEdit || !editContent.trim()}
-                className="px-4 py-1.5 text-xs bg-indigo-600 text-white font-semibold rounded-lg cursor-pointer hover:bg-indigo-700 transition disabled:opacity-50"
-              >
-                {isSavingEdit ? 'Đang lưu…' : 'Lưu'}
-              </button>
+                return (
+                  <div key={cId} className="flex items-start gap-2.5 group">
+                    <img
+                      src={cAvatar}
+                      alt=""
+                      className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      {editingCommentId === cId ? (
+                        <div className="bg-slate-100 dark:bg-slate-800/90 rounded-2xl p-2.5 max-w-full space-y-2">
+                          <input
+                            type="text"
+                            value={editingCommentText}
+                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-indigo-400 dark:border-indigo-600 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 outline-none"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveCommentEdit(cId);
+                              } else if (e.key === 'Escape') {
+                                setEditingCommentId(null);
+                                setEditingCommentText('');
+                              }
+                            }}
+                          />
+                          <div className="flex items-center justify-end gap-2 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCommentId(null);
+                                setEditingCommentText('');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            >
+                              Hủy
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isUpdatingComment || !editingCommentText.trim()}
+                              onClick={() => handleSaveCommentEdit(cId)}
+                              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold disabled:opacity-50 transition"
+                            >
+                              {isUpdatingComment ? 'Đang lưu...' : 'Lưu'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-100 dark:bg-slate-800/80 rounded-2xl px-3.5 py-2 inline-block max-w-full">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                            {cAuthorName}
+                          </span>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5 break-words">
+                            {comment.content}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1 ml-2">
+                        <button
+                          type="button"
+                          onClick={() => handleReactComment(cId, 'LIKE')}
+                          className="hover:text-indigo-600 font-semibold flex items-center gap-1"
+                        >
+                          <span>👍 Thích</span>
+                          {comment.reactionCount > 0 && <span>({comment.reactionCount})</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!isAuthenticated) {
+                              setShowLoginModal(true);
+                              return;
+                            }
+                            setReplyTo({ id: cId, authorName: cAuthorName });
+                          }}
+                          className="hover:text-indigo-600 font-semibold"
+                        >
+                          Trả lời
+                        </button>
+                        {isCommentOwner && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (editingCommentId === cId) {
+                                  setEditingCommentId(null);
+                                  setEditingCommentText('');
+                                } else {
+                                  setEditingCommentId(cId);
+                                  setEditingCommentText(comment.content || '');
+                                }
+                              }}
+                              className="hover:text-indigo-600 font-medium"
+                            >
+                              {editingCommentId === cId ? 'Hủy sửa' : 'Chỉnh sửa'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(cId)}
+                              className="hover:text-red-500 font-medium"
+                            >
+                              Xóa
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ) : (
-          <p className="text-sm leading-relaxed">
-            <Link
-              to={`/users/${post.userId || post.authorId}`}
-              className="font-semibold text-slate-900 mr-1.5 hover:underline"
-            >
-              {post.authorName || post.username}
-            </Link>
-            <span className="text-slate-800">{renderContentWithHashtags(displayCaption)}</span>
-            {isCaptionLong && !showFullCaption && (
-              <>
-                <span className="text-slate-400">… </span>
-                <button
-                  type="button"
-                  onClick={() => setShowFullCaption(true)}
-                  className="text-slate-500 font-semibold text-xs hover:text-slate-700 transition cursor-pointer"
-                >
-                  Xem thêm
-                </button>
-              </>
-            )}
-            {isCaptionLong && showFullCaption && (
-              <>
-                {' '}
-                <button
-                  type="button"
-                  onClick={() => setShowFullCaption(false)}
-                  className="text-slate-500 font-semibold text-xs hover:text-slate-700 transition cursor-pointer"
-                >
-                  Ẩn bớt
-                </button>
-              </>
-            )}
-          </p>
-        )}
-      </div>
-
-      {/* 6. Instagram View Comments link */}
-      <div className="px-4 py-0.5">
-        <button
-          type="button"
-          onClick={handleToggleComments}
-          className="text-xs text-gray-500 hover:text-gray-800 transition cursor-pointer font-normal"
-        >
-          {showComments
-            ? 'Ẩn bình luận'
-            : totalComments > 0
-            ? `Xem tất cả ${totalComments.toLocaleString()} bình luận`
-            : 'Thêm bình luận...'}
-        </button>
-      </div>
-
-      {/* Comments Drawer / Section */}
-      {showComments && (
-        <div className="p-4 bg-gray-50/60 border-t border-gray-100 mt-2">
-          <CommentSection
-            postId={post.id}
-            postAuthorId={postUid}
-            onCommentCountChange={(updater) => setTotalComments(updater)}
-          />
+          ) : (
+            <p className="text-xs text-slate-400 text-center py-2">Chưa có bình luận nào.</p>
+          )}
         </div>
       )}
 
       {/* Reacted Users Modal */}
       {showReactedModal && (
         <ReactedUsersModal
-          targetId={post.id}
+          targetId={postId}
           targetType="POST"
           onClose={() => setShowReactedModal(false)}
         />
       )}
-    </div>
+
+      {/* Edit Post Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 w-full max-w-lg border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-indigo-600" />
+                <span>Chỉnh sửa bài viết</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setNewFiles([]);
+                  setNewPreviews([]);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdatePost} className="space-y-4">
+              {/* Content textarea */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Nội dung bài viết</label>
+                <textarea
+                  rows={4}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs outline-none focus:border-indigo-600 resize-none text-slate-900 dark:text-white"
+                  placeholder="Bạn đang nghĩ gì?..."
+                  required
+                />
+              </div>
+
+              {/* Visibility Select */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Quyền riêng tư</label>
+                <select
+                  value={editVisibility}
+                  onChange={(e) => setEditVisibility(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none text-slate-900 dark:text-white font-medium cursor-pointer"
+                >
+                  <option value="PUBLIC">🌐 Công khai (Mọi người đều thấy)</option>
+                  <option value="FRIEND">👥 Bạn bè (Chỉ bạn bè mới thấy)</option>
+                  <option value="PRIVATE">🔒 Chỉ mình tôi (Riêng tư)</option>
+                </select>
+              </div>
+
+              {/* Existing Media Manager */}
+              {mediaItems.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1.5">
+                    Hình ảnh hiện có ({mediaItems.length})
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {mediaItems.map((item, idx) => (
+                      <div key={item.postMediaId || idx} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <img
+                          src={item.url || item}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExistingMedia(item.postMediaId)}
+                          className="absolute top-1 right-1 p-1.5 bg-black/60 hover:bg-rose-600 text-white rounded-lg backdrop-blur-xs opacity-90 transition shadow-xs"
+                          title="Xóa ảnh này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Media Section */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-slate-500">Thêm hình ảnh / video mới</label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Chọn tệp</span>
+                  </button>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  multiple
+                  accept="image/*,video/*"
+                  className="hidden"
+                />
+
+                {newPreviews.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40">
+                    {newPreviews.map((previewUrl, i) => (
+                      <div key={i} className="relative rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800">
+                        <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNewFile(i)}
+                          className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-rose-600 text-white rounded-lg transition"
+                          title="Bỏ chọn"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-indigo-600"
+                  >
+                    <ImageIcon className="w-6 h-6 stroke-[1.5]" />
+                    <span className="text-xs font-medium">Nhấn để thêm ảnh hoặc video vào bài viết</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setNewFiles([]);
+                    setNewPreviews([]);
+                  }}
+                  disabled={isSavingPost}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPost}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20 disabled:opacity-60"
+                >
+                  {isSavingPost && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSavingPost ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {isReporting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
+                <ShieldAlert className="w-5 h-5" />
+                <span>Báo cáo bài viết</span>
+              </div>
+              <button onClick={() => setIsReporting(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleReportSubmit} className="space-y-4">
+              <p className="text-xs text-slate-500">
+                Vui lòng cung cấp lý do báo cáo bài viết vi phạm tiêu chuẩn cộng đồng.
+              </p>
+              <textarea
+                rows={3}
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="Lý do báo cáo vi phạm..."
+                className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs outline-none focus:border-rose-500 resize-none text-slate-900 dark:text-white"
+                required
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsReporting(false)}
+                  className="px-4 py-2 border border-slate-200 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-rose-600 text-white text-xs font-semibold rounded-xl hover:bg-rose-700"
+                >
+                  Gửi báo cáo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Login Prompt Modal */}
+      <LoginPromptModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        title="Tương tác với bài viết"
+        message={`Đăng nhập để thả cảm xúc, bình luận hoặc lưu bài viết của ${authorName}.`}
+      />
+    </article>
   );
-}
+};
+
+export default PostCard;

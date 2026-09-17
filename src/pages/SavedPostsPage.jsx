@@ -1,100 +1,76 @@
-import { useState, useEffect } from 'react';
-import postService from '../services/postService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Bookmark, RefreshCw } from 'lucide-react';
 import PostCard from '../components/post/PostCard';
-import { Bookmark } from 'lucide-react';
-import { PostSkeleton } from '../components/ui/Skeleton';
+import savedPostService from '../services/savedPostService';
+import toast from 'react-hot-toast';
 
-export default function SavedPostsPage() {
-  const [posts, setPosts] = useState([]);
+export const SavedPostsPage = () => {
+  const [savedPosts, setSavedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
 
-  const fetchSavedPosts = async (pageNum = 0, isReset = false) => {
+  const fetchSavedPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await postService.getSavedPosts(pageNum, 10);
-      const content = res.data?.data?.content || res.data?.data || [];
-      if (isReset) {
-        setPosts(content);
-      } else {
-        setPosts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const uniqueNew = content.filter((p) => !existingIds.has(p.id));
-          return [...prev, ...uniqueNew];
-        });
-      }
-      setPage(pageNum);
-      setHasMore(content.length === 10);
+      const res = await savedPostService.getSavedPosts(0, 30);
+      const data = res.data?.data?.content || res.data?.data || [];
+      setSavedPosts(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load saved posts', err);
+      toast.error('Không thể tải danh sách bài viết đã lưu');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSavedPosts(0, true);
   }, []);
 
-  const handlePostDeleted = (postId) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
+  useEffect(() => {
+    fetchSavedPosts();
+  }, [fetchSavedPosts]);
 
   return (
-    <div className="max-w-2xl mx-auto py-4 space-y-6">
+    <div className="w-full max-w-2xl mx-auto py-2">
       {/* Header */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2.5">
-            <Bookmark className="w-7 h-7 text-blue-600 fill-blue-600" />
-            Bài viết đã lưu
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Chỉ bạn mới có thể nhìn thấy các bài viết bạn đã lưu.
-          </p>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xs mb-6">
+        <div className="flex items-center gap-2.5 mb-1 text-amber-500">
+          <Bookmark className="w-5 h-5 fill-current" />
+          <span className="text-xs font-bold uppercase tracking-wider">Bộ sưu tập</span>
         </div>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+          Bài viết đã lưu ({savedPosts.length})
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          Danh sách các bài viết bạn đã đánh dấu để xem lại sau
+        </p>
       </div>
 
-      {/* Post list */}
-      <div className="space-y-5">
-        {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onPostDeleted={handlePostDeleted}
-            onPostUpdated={() => fetchSavedPosts(0, true)}
-          />
-        ))}
-
-        {loading && (
-          <div className="space-y-5">
-            <PostSkeleton />
-            <PostSkeleton />
+      {/* Stream */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center p-12">
+            <RefreshCw className="w-8 h-8 animate-spin text-amber-500" />
           </div>
-        )}
-
-        {!loading && posts.length === 0 && (
-          <div className="bg-white rounded-3xl p-16 text-center shadow-sm border border-gray-100 space-y-3">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <Bookmark size={28} />
-            </div>
-            <h3 className="text-base font-bold text-gray-800">Chưa có bài viết nào được lưu</h3>
-            <p className="text-xs text-gray-400 max-w-sm mx-auto">
-              Lưu bài viết và video để xem lại sau bất cứ khi nào bạn muốn.
+        ) : savedPosts.length > 0 ? (
+          savedPosts.map((post) => (
+            <PostCard
+              key={post.id || post.postId}
+              post={{ ...post, isSaved: true }}
+              onPostUpdated={fetchSavedPosts}
+              onPostDeleted={() => fetchSavedPosts()}
+            />
+          ))
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center shadow-xs">
+            <Bookmark className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-2 stroke-[1.5]" />
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              Chưa có bài viết nào được lưu
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Nhấn vào biểu tượng Lưu trên bất kỳ bài viết nào để lưu lại tại đây.
             </p>
           </div>
-        )}
-
-        {!loading && hasMore && posts.length > 0 && (
-          <button
-            onClick={() => fetchSavedPosts(page + 1, false)}
-            className="w-full py-3 bg-white border border-gray-200 rounded-2xl text-blue-600 font-semibold hover:bg-blue-50 text-sm shadow-sm transition"
-          >
-            Tải thêm bài viết đã lưu
-          </button>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default SavedPostsPage;

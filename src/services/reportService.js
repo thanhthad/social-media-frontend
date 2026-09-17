@@ -10,8 +10,8 @@ const reportService = {
   reportComment: (commentId, reason) =>
     axiosClient.post('/reports', { postId: commentId, reason }),
 
-  reportUser: (userId, reason) =>
-    axiosClient.post('/dating/reports', { targetUserId: userId, reasonId: 1, description: reason }),
+  reportUser: (reportedUserId, reason) =>
+    axiosClient.post('/dating/reports', { reportedUserId, reason }),
 };
 
 export default reportService;

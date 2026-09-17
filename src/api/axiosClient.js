@@ -97,9 +97,15 @@ axiosClient.interceptors.response.use(
         processQueue(new Error('No refresh token available'), null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        showAuthToast();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        
+        // Only force-redirect to /login if user is on an authenticated-only route
+        const publicPages = ['/', '/reels', '/search', '/login', '/register', '/verify-email', '/forgot-password', '/reset-password'];
+        const isPublicPage = publicPages.includes(window.location.pathname) || window.location.pathname.startsWith('/posts/');
+        if (!isPublicPage) {
+          showAuthToast();
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }

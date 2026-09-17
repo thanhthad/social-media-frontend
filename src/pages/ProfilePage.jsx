@@ -1,1395 +1,690 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  MapPin,
+  Link as LinkIcon,
+  Calendar,
+  CheckCircle2,
+  Edit3,
+  Share2,
+  Grid,
+  FileText,
+  Clapperboard,
+  Users,
+  Camera,
+  MessageCircle,
+  UserPlus,
+  UserCheck,
+  UserX,
+  ShieldAlert,
+  Briefcase,
+  GraduationCap,
+  Globe,
+  Lock,
+  RefreshCw,
+  MoreHorizontal,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useUser } from '../contexts/UserContext';
-import { useAuth } from '../contexts/AuthContext';
 import userService from '../services/userService';
+import postService from '../services/postService';
+import reelService from '../services/reelService';
 import friendshipService from '../services/friendshipService';
 import conversationService from '../services/conversationService';
 import blockService from '../services/blockService';
-import postService from '../services/postService';
-import storyService from '../services/storyService';
-import reelService from '../services/reelService';
 import PostCard from '../components/post/PostCard';
-import CreatePostForm from '../components/post/CreatePostForm';
-import MutualFriendsModal from '../components/friend/MutualFriendsModal';
-import StoryViewerModal from '../components/story/StoryViewerModal';
-import EditFieldModal from '../components/profile/EditFieldModal';
-import EditProfileModal from '../components/profile/EditProfileModal';
-import toast from 'react-hot-toast';
+import Tabs from '../components/ui/Tabs';
+import Button from '../components/ui/Button';
 
-
-import {
-  UserPlus,
-  UserCheck,
-  Ban,
-  Users,
-  MoreVertical,
-  Edit3,
-  MessageSquare,
-  Bookmark,
-  Grid,
-  Info,
-  Briefcase,
-  GraduationCap,
-  MapPin,
-  Link as LinkIcon,
-  Phone,
-  UserX,
-  Globe,
-  Lock,
-  Camera,
-  Play,
-  Eye,
-  Clapperboard,
-  Heart,
-  Pencil,
-  Calendar,
-  User,
-} from 'lucide-react';
-
-
-export default function ProfilePage() {
-  const { userId: paramUserId } = useParams();
+export const ProfilePage = () => {
+  const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser, currentUserId, refreshUser } = useUser();
-  const { isAuthenticated } = useAuth();
+  const { user: authUser, currentUserId, refreshUser } = useUser();
 
-  const isOwnProfile = !paramUserId || Number(paramUserId) === currentUserId;
-  const targetUserId = isOwnProfile ? currentUserId : Number(paramUserId);
+  const isOwnProfile = !routeUserId || String(routeUserId) === String(currentUserId);
+  const targetUserId = routeUserId ? Number(routeUserId) : currentUserId;
 
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'friends' | 'saved'
-  const [showMutualModal, setShowMutualModal] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
-  const [isStartingChat, setIsStartingChat] = useState(false);
-
-  // Posts
+  const [profileUser, setProfileUser] = useState(null);
+  const [stats, setStats] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-
-  // Saved Posts (for own profile)
-  const [savedPosts, setSavedPosts] = useState([]);
-
-  // Reels
-  const [userReels, setUserReels] = useState([]);
-  const [loadingReels, setLoadingReels] = useState(false);
-
-  // Friends list
+  const [reels, setReels] = useState([]);
   const [friends, setFriends] = useState([]);
-  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('posts');
+  const [friendshipStatus, setFriendshipStatus] = useState('NONE'); // 'NONE' | 'FRIEND' | 'SENT' | 'RECEIVED'
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Mutual friends list
-  const [mutualFriends, setMutualFriends] = useState([]);
-  const [loadingMutualFriends, setLoadingMutualFriends] = useState(false);
-  const [friendsSubTab, setFriendsSubTab] = useState('all'); // 'all' | 'mutual'
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
 
-  // User Stats
-  const [userStats, setUserStats] = useState({
-    totalPost: 0,
-    totalReel: 0,
-    totalFriend: 0,
-    totalLikesReceived: 0,
-    friendshipStatus: 'NONE',
-  });
+  // Fetch all user profile information
+  const loadProfileData = useCallback(async () => {
+    if (!targetUserId) return;
+    setLoading(true);
 
-  // Friendship & Block Status
-  const [isFriend, setIsFriend] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
+    try {
+      // 1. User details & stats
+      const [userRes, statsRes] = await Promise.allSettled([
+        isOwnProfile ? userService.getMe() : userService.getUserById(targetUserId),
+        userService.getUserStats(targetUserId),
+      ]);
 
-  // Story
-  const [myStories, setMyStories] = useState([]);
-  const [storyViewer, setStoryViewer] = useState({ open: false, index: 0, stories: [] });
+      if (userRes.status === 'fulfilled') {
+        const u = userRes.value.data?.data || userRes.value.data;
+        setProfileUser(u);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data?.data || statsRes.value.data);
+      }
 
-  // ── Facebook-style inline edit (per-field popup) ──────────────────────────
-  const [editModal, setEditModal] = useState({
-    open: false,
-    fieldName: '',       // enum ProfileFieldName ở BE
-    fieldLabel: '',      // nhãn hiển thị trong modal
-    fieldType: 'text',   // 'text' | 'textarea' | 'date' | 'select' | 'number'
-    fieldOptions: [],    // [{ value, label }] khi fieldType === 'select'
-    initialValue: '',    // giá trị hiện tại
-    maxLength: undefined,
-    placeholder: '',
-  });
-
-  // Facebook-style full edit profile modal
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-
-
-  /** Mở popup chỉnh sửa 1 field */
-  const openEditModal = (cfg) => setEditModal({ ...cfg, open: true });
-  /** Đóng popup */
-  const closeEditModal = () => setEditModal((m) => ({ ...m, open: false }));
-
-  /**
-   * Gọi API patch 1 field rồi cập nhật local state ngay lập tức.
-   * @param {string} fieldName - enum ProfileFieldName (VD: "BIO")
-   * @param {string|null} value
-   */
-  const handleFieldSave = async (fieldName, value) => {
-    await userService.patchProfileField(fieldName, value);
-    // Cập nhật local profileData để UI phản ánh ngay không cần reload
-    setProfileData((prev) => {
-      if (!prev) return prev;
-      const fieldMap = {
-        FULL_NAME: 'fullName',
-        BIO: 'bio',
-        DATE_OF_BIRTH: 'dateOfBirth',
-        GENDER: 'gender',
-        PHONE: 'phone',
-        WEBSITE: 'website',
-        COUNTRY: 'country',
-        CITY: 'city',
-        DISTRICT: 'district',
-        OCCUPATION: 'occupation',
-        COMPANY: 'company',
-        EDUCATION: 'education',
-        VISIBILITY: 'visibility',
-      };
-      const key = fieldMap[fieldName];
-      return key ? { ...prev, [key]: value } : prev;
-    });
-    if (isOwnProfile && refreshUser) {
-      refreshUser();
-    }
-    toast.success('Đã cập nhật thành công!');
-  };
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!targetUserId) return;
-      setLoading(true);
+      // 2. User Posts
       try {
-        if (isOwnProfile) {
-          if (currentUser) {
-            setProfileData(currentUser);
-          }
-          try {
-            const res = await userService.getMe();
-            const meData = res.data?.data || res.data;
-            if (meData) {
-              setProfileData((prev) => ({
-                ...(prev || {}),
-                ...meData,
-                id: meData.userId || meData.id,
-              }));
-            }
-          } catch (e) {
-            console.error('Failed to fetch fresh user profile', e);
-          }
-        } else {
-          const res = await userService.getUserById(targetUserId);
-          const data = res.data?.data || res.data;
-          setProfileData(data);
-          setIsFriend(!!data.isFriend);
-          setRequestSent(!!data.requestSent);
-
-          try {
-            const blockRes = await blockService.checkBlocked(targetUserId);
-            setIsBlocked(!!(blockRes.data?.data ?? blockRes.data));
-          } catch (_) {}
-        }
-
-        // Fetch User Stats
-        userService.getUserStats(targetUserId)
-          .then((res) => {
-            const stats = res.data?.data;
-            if (stats) {
-              setUserStats(stats);
-              if (stats.friendshipStatus === 'FRIENDS') setIsFriend(true);
-              if (stats.friendshipStatus === 'PENDING_SENT') setRequestSent(true);
-              if (stats.friendshipStatus === 'BLOCKED') setIsBlocked(true);
-            }
-          })
-          .catch(() => {});
-      } catch (err) {
-        console.error('Failed to load profile', err);
-      } finally {
-        setLoading(false);
+        const pRes = await postService.getUserPosts(targetUserId, 0, 30);
+        const pList = pRes.data?.data?.content || pRes.data?.data || [];
+        setPosts(Array.isArray(pList) ? pList : []);
+      } catch (e) {
+        console.warn('User posts fetch error', e);
       }
-    };
 
-    fetchProfile();
-  }, [targetUserId, isOwnProfile, currentUser]);
-
-  // Fetch own stories when own profile
-  useEffect(() => {
-    if (!isOwnProfile) return;
-    storyService.getMyStories()
-      .then((res) => {
-        const data = res.data?.data || [];
-        setMyStories(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {});
-  }, [isOwnProfile]);
-
-  // Fetch Tab Specific Data
-  useEffect(() => {
-    if (!targetUserId) return;
-
-    if (activeTab === 'posts') {
-      setLoadingPosts(true);
-      const fetcher = isOwnProfile
-        ? postService.getMyPosts(0, 30)
-        : postService.getUserPosts(targetUserId, 0, 30);
-      fetcher
-        .then((res) => {
-          const list = res.data?.data?.content || res.data?.data || [];
-          setPosts(Array.isArray(list) ? list : []);
-        })
-        .catch((err) => console.error(err))
-        .finally(() => setLoadingPosts(false));
-    } else if (activeTab === 'friends') {
-      if (friendsSubTab === 'mutual' && !isOwnProfile) {
-        setLoadingMutualFriends(true);
-        friendshipService
-          .getMutualFriends(targetUserId)
-          .then((res) => {
-            const list = res.data?.data || res.data || [];
-            setMutualFriends(Array.isArray(list) ? list : []);
-          })
-          .catch((err) => console.error(err))
-          .finally(() => setLoadingMutualFriends(false));
-      } else {
-        setLoadingFriends(true);
-        friendshipService
-          .getFriends(targetUserId, 0, 50)
-          .then((res) => {
-            const list = res.data?.data?.content || res.data?.data || [];
-            setFriends(Array.isArray(list) ? list : []);
-          })
-          .catch((err) => console.error(err))
-          .finally(() => setLoadingFriends(false));
+      // 3. User Reels
+      try {
+        const rRes = await reelService.getUserReels(targetUserId, 0, 30);
+        const rList = rRes.data?.data?.content || rRes.data?.data || [];
+        setReels(Array.isArray(rList) ? rList : []);
+      } catch (e) {
+        console.warn('User reels fetch error', e);
       }
-    } else if (activeTab === 'saved' && isOwnProfile) {
-      postService
-        .getSavedPosts(0, 30)
-        .then((res) => {
-          const list = res.data?.data?.content || res.data?.data || [];
-          setSavedPosts(Array.isArray(list) ? list : []);
-        })
-        .catch((err) => console.error(err));
-    } else if (activeTab === 'reels') {
-      setLoadingReels(true);
-      const req = isOwnProfile
-        ? reelService.getMyReels(0, 50)
-        : reelService.getUserReels(targetUserId, 0, 50);
 
-      req
-        .then((res) => {
-          const list = res.data?.data?.content || res.data?.data || [];
-          setUserReels(Array.isArray(list) ? list : []);
-        })
-        .catch((err) => console.error('Failed to load reels', err))
-        .finally(() => setLoadingReels(false));
+      // 4. User Friends
+      try {
+        const fRes = await friendshipService.getFriends(targetUserId, 0, 50);
+        const fList = fRes.data?.data?.content || fRes.data?.data || [];
+        setFriends(Array.isArray(fList) ? fList : []);
+      } catch (e) {
+        console.warn('User friends fetch error', e);
+      }
+
+      // 5. Friendship check if not own profile
+      if (!isOwnProfile && currentUserId) {
+        try {
+          const myFriendsRes = await friendshipService.getFriends(currentUserId, 0, 100);
+          const myFriends = myFriendsRes.data?.data?.content || myFriendsRes.data?.data || [];
+          const isFriend = myFriends.some(
+            (f) => (f.userId || f.id) === Number(targetUserId)
+          );
+          if (isFriend) {
+            setFriendshipStatus('FRIEND');
+          } else {
+            const pendingRes = await friendshipService.getPendingRequests(0, 50);
+            const pendings = pendingRes.data?.data?.content || pendingRes.data?.data || [];
+            const isPending = pendings.some(
+              (r) => (r.userId || r.id) === Number(targetUserId)
+            );
+            if (isPending) {
+              setFriendshipStatus('RECEIVED');
+            } else {
+              setFriendshipStatus('NONE');
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Failed to load profile', err);
+      toast.error('Không thể tải thông tin trang cá nhân');
+    } finally {
+      setLoading(false);
     }
-  }, [activeTab, friendsSubTab, targetUserId, isOwnProfile]);
+  }, [targetUserId, isOwnProfile, currentUserId]);
 
+  useEffect(() => {
+    loadProfileData();
+  }, [loadProfileData]);
+
+  // Handle Friendship actions
   const handleSendFriendRequest = async () => {
-    if (!targetUserId) return;
+    setActionLoading(true);
     try {
       await friendshipService.sendFriendRequest(targetUserId);
-      setRequestSent(true);
-      toast.success('Đã gửi lời mời kết bạn!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể gửi lời mời kết bạn');
+      setFriendshipStatus('SENT');
+      toast.success('Đã gửi lời mời kết bạn');
+    } catch (e) {
+      toast.error('Không thể gửi lời mời kết bạn');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleCancelFriendRequest = async () => {
-    if (!targetUserId) return;
+  const handleAcceptFriendRequest = async () => {
+    setActionLoading(true);
+    try {
+      await friendshipService.acceptFriendRequest(targetUserId);
+      setFriendshipStatus('FRIEND');
+      toast.success('Đã chấp nhận kết bạn');
+      loadProfileData();
+    } catch (e) {
+      toast.error('Không thể chấp nhận kết bạn');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelFriend = async () => {
+    if (!window.confirm('Bạn có chắc muốn hủy kết bạn / hủy lời mời?')) return;
+    setActionLoading(true);
     try {
       await friendshipService.cancelFriendRequest(targetUserId);
-      setRequestSent(false);
-      toast.success('Đã hủy lời mời kết bạn');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể hủy lời mời');
+      setFriendshipStatus('NONE');
+      toast.success('Đã hủy kết bạn');
+      loadProfileData();
+    } catch (e) {
+      toast.error('Không thể thực hiện');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleUnfriend = async () => {
-    if (!targetUserId) return;
-    if (window.confirm(`Bạn có chắc muốn hủy kết bạn với ${profileData?.fullName || profileData?.username}?`)) {
-      try {
-        await friendshipService.rejectFriendRequest(targetUserId);
-        setIsFriend(false);
-        setRequestSent(false);
-        toast.success('Đã hủy kết bạn');
-      } catch (err) {
-        toast.error(err.response?.data?.message || 'Không thể hủy kết bạn');
-      }
-    }
-  };
-
+  // Start private chat
   const handleStartChat = async () => {
-    if (!targetUserId) return;
-    setIsStartingChat(true);
     try {
       const res = await conversationService.createPrivate(targetUserId);
-      const conv = res.data?.data;
-      navigate('/messages', {
-        state: {
-          conversation: conv,
-          conversationId: conv?.conversation_id || conv?.id,
-        },
-      });
-    } catch (err) {
-      console.error('Failed to create private conversation', err);
-      toast.error(err.response?.data?.message || 'Không thể tạo cuộc trò chuyện');
       navigate('/messages');
-    } finally {
-      setIsStartingChat(false);
+    } catch (e) {
+      navigate('/messages');
     }
   };
 
+  // Block user
   const handleBlockUser = async () => {
-    if (!targetUserId) return;
+    if (!window.confirm('Bạn có chắc chắn muốn chặn người dùng này?')) return;
     try {
       await blockService.blockUser(targetUserId);
       toast.success('Đã chặn người dùng này');
-      setIsBlocked(true);
-      setShowMenu(false);
       navigate('/');
-    } catch (err) {
+    } catch (e) {
       toast.error('Không thể chặn người dùng');
     }
   };
 
-  const handlePostCreated = () => {
-    setLoadingPosts(true);
-    postService.getMyPosts(0, 30)
-      .then((res) => {
-        const list = res.data?.data?.content || res.data?.data || [];
-        setPosts(Array.isArray(list) ? list : []);
-      })
-      .finally(() => setLoadingPosts(false));
+  // Upload Avatar
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading('Đang cập nhật ảnh đại diện...');
+    try {
+      await userService.updateAvatar(file);
+      toast.success('Đã cập nhật ảnh đại diện thành công!', { id: toastId });
+      refreshUser?.();
+      loadProfileData();
+    } catch (err) {
+      toast.error('Không thể cập nhật ảnh đại diện', { id: toastId });
+    }
   };
 
-  if (loading || !profileData) {
+  // Upload Cover
+  const handleCoverChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading('Đang cập nhật ảnh bìa...');
+    try {
+      await userService.updateCover(file);
+      toast.success('Đã cập nhật ảnh bìa thành công!', { id: toastId });
+      refreshUser?.();
+      loadProfileData();
+    } catch (err) {
+      toast.error('Không thể cập nhật ảnh bìa', { id: toastId });
+    }
+  };
+
+  const handleShareProfile = () => {
+    navigator.clipboard?.writeText?.(window.location.href);
+    toast.success('Đã sao chép liên kết trang cá nhân!');
+  };
+
+  if (loading && !profileUser) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      <div className="w-full flex items-center justify-center min-h-[50vh]">
+        <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
   }
 
-  if (!isOwnProfile && isBlocked) {
-    return (
-      <div className="max-w-2xl mx-auto my-12 p-8 bg-white rounded-3xl border border-gray-100 shadow-sm text-center space-y-4">
-        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
-          <Ban size={32} />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900">Bạn đã chặn người dùng này</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto">
-          Bạn sẽ không nhìn thấy bài viết hoặc thông tin từ người này.
-        </p>
-        <div className="pt-2">
-          <button
-            onClick={async () => {
-              try {
-                await blockService.unblockUser(targetUserId);
-                setIsBlocked(false);
-                toast.success('Đã bỏ chặn người dùng này');
-              } catch {
-                toast.error('Không thể bỏ chặn');
-              }
-            }}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition shadow-sm cursor-pointer"
-          >
-            Bỏ chặn
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const displayName =
+    profileUser?.fullName ||
+    profileUser?.displayName ||
+    profileUser?.username ||
+    'Người dùng';
+  const username = profileUser?.username || profileUser?.userName || '';
+  const avatarUrl =
+    profileUser?.avatarUrl ||
+    profileUser?.avatar ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+  const coverUrl =
+    profileUser?.coverUrl ||
+    profileUser?.cover ||
+    'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=1200&auto=format&fit=crop&q=80';
 
-  const {
-    username,
-    fullName,
-    bio,
-    avatarUrl,
-    coverUrl,
-    gender,
-    dateOfBirth,
-    phone,
-    website,
-    country,
-    city,
-    district,
-    occupation,
-    company,
-    education,
-    socialLinks,
-    totalFriend,
-    totalMutualCount = 0,
-    totalMutualFriendAvatars = [],
-    friendsCount = totalFriend ?? friends.length ?? 0,
-    visibility,
-  } = profileData;
+  const bio = profileUser?.bio || profileUser?.aboutMe || '';
+  const location = [profileUser?.city, profileUser?.country].filter(Boolean).join(', ');
+  const website = profileUser?.website || '';
+  const occupation = profileUser?.occupation || profileUser?.work || '';
 
-  // Determine if private profile (for other users)
-  const isPrivateProfile = !isOwnProfile && (visibility === 'PRIVATE');
-  const isFriendOnlyProfile = !isOwnProfile && (visibility === 'FRIEND') && !isFriend;
-
-  // For story viewer on own profile
-  const storyCardsForViewer = myStories.map((s) => ({
-    userId: currentUserId,
-    username: currentUser?.username,
-    avatarUrl: currentUser?.avatarUrl,
-    url: s.url || s.mediaUrl,
-    mediaType: s.mediaType,
-    content: s.content,
-    storyId: s.storyId || s.id,
-    createdAt: s.createdAt,
-    interactions: s.interactions || s.viewers || [],
-    isMine: true,
-  }));
+  const tabs = [
+    { id: 'posts', label: 'Bài viết', icon: FileText, badge: stats?.postCount ?? posts.length },
+    { id: 'reels', label: 'Reels', icon: Clapperboard, badge: reels.length },
+    { id: 'friends', label: 'Bạn bè', icon: Users, badge: stats?.friendCount ?? friends.length },
+    { id: 'about', label: 'Giới thiệu', icon: Grid },
+  ];
 
   return (
-    <div className="max-w-5xl mx-auto pb-16 space-y-0">
-      {/* ── Cover & Avatar Header ── */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-5">
-        <div className="relative">
-          {/* Cover Photo */}
-          {coverUrl ? (
-            <img src={coverUrl} alt="Cover" className="h-52 sm:h-64 w-full object-cover" />
-          ) : (
-            <div className="h-52 sm:h-64 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
-          )}
+    <div className="w-full max-w-5xl mx-auto py-2">
+      {/* 1. Profile Header Container */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs mb-6">
+        {/* Cover Photo */}
+        <div className="relative h-48 sm:h-72 w-full overflow-hidden bg-slate-200 dark:bg-slate-800 group">
+          <img
+            src={coverUrl}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-          {/* Avatar */}
-          <div className="absolute -bottom-16 left-6">
-            <div className="relative">
-              <img
-                src={avatarUrl || 'https://via.placeholder.com/150'}
-                alt={username}
-                className="h-32 w-32 rounded-full border-4 border-white object-cover shadow-xl bg-white"
+          {/* Cover upload button (own profile) */}
+          {isOwnProfile && (
+            <>
+              <input
+                type="file"
+                ref={coverInputRef}
+                onChange={handleCoverChange}
+                accept="image/*"
+                className="hidden"
               />
-              {/* Story ring if own profile has stories */}
-              {isOwnProfile && myStories.length > 0 && (
-                <button
-                  onClick={() => setStoryViewer({ open: true, index: 0, stories: storyCardsForViewer })}
-                  className="absolute inset-0 rounded-full ring-4 ring-gradient-to-tr ring-amber-400 hover:opacity-90 transition"
-                  style={{ background: 'transparent' }}
-                  title="Xem tin của bạn"
-                />
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-md transition flex items-center gap-1.5 shadow-md"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Đổi ảnh bìa</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Profile Info Row */}
+        <div className="px-5 sm:px-8 pb-6 pt-0 relative">
+          {/* Avatar and Main Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-16 sm:-mt-20 mb-4">
+            <div className="relative inline-block group">
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-white dark:border-slate-900 shadow-md ring-1 ring-slate-200/50"
+              />
+              {isOwnProfile && (
+                <>
+                  <input
+                    type="file"
+                    ref={avatarInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-1 right-1 p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg border-2 border-white dark:border-slate-900 transition"
+                    title="Đổi ảnh đại diện"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Actions Bar */}
+            <div className="flex items-center flex-wrap gap-2.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={Share2}
+                onClick={handleShareProfile}
+              >
+                Chia sẻ
+              </Button>
+
+              {isOwnProfile ? (
+                <Link to="/profile/edit">
+                  <Button variant="primary" size="sm" leftIcon={Edit3}>
+                    Chỉnh sửa trang cá nhân
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  {/* Friendship Button */}
+                  {friendshipStatus === 'NONE' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={UserPlus}
+                      disabled={actionLoading}
+                      onClick={handleSendFriendRequest}
+                    >
+                      Kết bạn
+                    </Button>
+                  )}
+                  {friendshipStatus === 'SENT' && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={UserX}
+                      disabled={actionLoading}
+                      onClick={handleCancelFriend}
+                    >
+                      Đã gửi lời mời
+                    </Button>
+                  )}
+                  {friendshipStatus === 'RECEIVED' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={UserCheck}
+                      disabled={actionLoading}
+                      onClick={handleAcceptFriendRequest}
+                    >
+                      Chấp nhận kết bạn
+                    </Button>
+                  )}
+                  {friendshipStatus === 'FRIEND' && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={UserCheck}
+                      disabled={actionLoading}
+                      onClick={handleCancelFriend}
+                    >
+                      Bạn bè
+                    </Button>
+                  )}
+
+                  {/* Message Button */}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={MessageCircle}
+                    onClick={handleStartChat}
+                  >
+                    Nhắn tin
+                  </Button>
+
+                  {/* Block Button */}
+                  <button
+                    onClick={handleBlockUser}
+                    className="p-2 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500 rounded-xl transition"
+                    title="Chặn người dùng này"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Identity & Bio */}
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  {displayName}
+                </h1>
+                {profileUser?.isVerified && (
+                  <CheckCircle2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 fill-indigo-100 dark:fill-indigo-950" />
+                )}
+              </div>
+              {username && (
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  @{username}
+                </span>
+              )}
+            </div>
+
+            {bio && (
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 max-w-2xl leading-relaxed">
+                {bio}
+              </p>
+            )}
+
+            {/* Metadata Badges */}
+            <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
+              {location && (
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{location}</span>
+                </div>
+              )}
+              {occupation && (
+                <div className="flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{occupation}</span>
+                </div>
+              )}
+              {website && (
+                <div className="flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
+                  <a
+                    href={website.startsWith('http') ? website : `https://${website}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    {website}
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Stats Counter Row */}
+            <div className="flex items-center gap-6 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <div>
+                <span className="font-bold text-slate-900 dark:text-white text-sm">
+                  {stats?.postCount ?? posts.length}
+                </span>{' '}
+                <span className="text-slate-500">Bài viết</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 dark:text-white text-sm">
+                  {stats?.friendCount ?? friends.length}
+                </span>{' '}
+                <span className="text-slate-500">Bạn bè</span>
+              </div>
+              {stats?.followerCount !== undefined && (
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm">
+                    {stats.followerCount}
+                  </span>{' '}
+                  <span className="text-slate-500">Người theo dõi</span>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* User Info & Actions Bar */}
-        <div className="pt-20 px-6 pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">
-              {fullName || username}
-            </h1>
-            <p className="text-xs text-gray-400 font-semibold mt-0.5">@{username}</p>
-            {bio && <p className="mt-2 text-sm text-gray-600 max-w-lg leading-relaxed">{bio}</p>}
+        {/* Profile Tabs */}
+        <div className="px-5 sm:px-8 border-t border-slate-100 dark:border-slate-800">
+          <Tabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            variant="underlined"
+          />
+        </div>
+      </div>
 
-            {/* Instagram Style Stats Row */}
-            <div className="flex flex-wrap items-center gap-5 mt-3 text-xs text-gray-500 font-medium">
-              <button
-                onClick={() => setActiveTab('posts')}
-                className="flex items-center gap-1.5 text-gray-800 font-bold hover:text-blue-600 transition cursor-pointer"
-              >
-                <Grid size={14} className="text-gray-500" />
-                <span>
-                  <strong className="text-gray-900 font-black">{userStats.totalPost || posts.length || 0}</strong> bài viết
+      {/* 2. Profile Body Content */}
+      <div className="w-full">
+        {activeTab === 'posts' && (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            {posts.length > 0 ? (
+              posts.map((post) => (
+                <PostCard
+                  key={post.id || post.postId}
+                  post={post}
+                  onPostUpdated={loadProfileData}
+                  onPostDeleted={(deletedId) =>
+                    setPosts((prev) =>
+                      prev.filter((p) => (p.id || p.postId) !== deletedId)
+                    )
+                  }
+                />
+              ))
+            ) : (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400">
+                <FileText className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Chưa có bài viết nào
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Người dùng này chưa chia sẻ bài viết nào lên bảng tin.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'reels' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {reels.length > 0 ? (
+              reels.map((reel) => (
+                <div
+                  key={reel.id}
+                  onClick={() => navigate('/reels')}
+                  className="group relative aspect-[9/16] rounded-2xl overflow-hidden bg-black cursor-pointer shadow-sm"
+                >
+                  <img
+                    src={reel.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80'}
+                    alt=""
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+                  <div className="absolute bottom-3 left-3 right-3 text-white text-xs">
+                    <p className="line-clamp-2 text-[11px] font-medium mb-1">
+                      {reel.content}
+                    </p>
+                    <span className="text-[10px] text-white/70">
+                      {reel.viewCount || 0} lượt xem
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400">
+                <Clapperboard className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Chưa có Reel nào
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'friends' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {friends.length > 0 ? (
+              friends.map((friend) => {
+                const fId = friend.userId || friend.id;
+                const fName = friend.fullName || friend.username || 'Bạn bè';
+                const fAvatar =
+                  friend.avatarUrl ||
+                  friend.avatar ||
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
+                return (
+                  <Link
+                    key={fId}
+                    to={`/profile/${fId}`}
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition group"
+                  >
+                    <img
+                      src={fAvatar}
+                      alt={fName}
+                      className="w-16 h-16 rounded-full object-cover mb-2 ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-indigo-600 transition"
+                    />
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate w-full">
+                      {fName}
+                    </h4>
+                    {friend.username && (
+                      <span className="text-[10px] text-slate-400 truncate w-full">
+                        @{friend.username}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="col-span-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400">
+                <Users className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Chưa có bạn bè nào
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xs max-w-2xl mx-auto space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
+              Thông tin chi tiết
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                <span className="text-slate-400 block mb-1">Họ và tên</span>
+                <span className="font-bold text-slate-900 dark:text-white text-sm">
+                  {displayName}
                 </span>
-              </button>
-
-              <button
-                onClick={() => { setActiveTab('friends'); setFriendsSubTab('all'); }}
-                className="flex items-center gap-1.5 text-gray-800 font-bold hover:text-blue-600 transition cursor-pointer"
-              >
-                <Users size={14} className="text-blue-600" />
-                <span>
-                  <strong className="text-gray-900 font-black">{userStats.totalFriend || friendsCount || 0}</strong> bạn bè
+              </div>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                <span className="text-slate-400 block mb-1">Tên người dùng</span>
+                <span className="font-bold text-slate-900 dark:text-white text-sm">
+                  @{username}
                 </span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('reels')}
-                className="flex items-center gap-1.5 text-gray-800 font-bold hover:text-pink-600 transition cursor-pointer"
-              >
-                <Clapperboard size={14} className="text-pink-500" />
-                <span>
-                  <strong className="text-gray-900 font-black">{userStats.totalReel || userReels.length || 0}</strong> reels
-                </span>
-              </button>
-
-              {userStats.totalLikesReceived > 0 && (
-                <div className="flex items-center gap-1.5 text-gray-700 font-bold">
-                  <span className="text-rose-500">❤️</span>
-                  <span>
-                    <strong className="text-gray-900 font-black">{userStats.totalLikesReceived}</strong> lượt thích
+              </div>
+              {profileUser?.phone && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                  <span className="text-slate-400 block mb-1">Số điện thoại</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {profileUser.phone}
                   </span>
                 </div>
               )}
-
-              {/* Mutual Friends avatar cluster */}
-              {!isOwnProfile && (totalMutualCount > 0 || totalMutualFriendAvatars?.length > 0) && (
-                <button
-                  onClick={() => setShowMutualModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-full transition border border-blue-100 active:scale-95 cursor-pointer"
-                >
-                  {totalMutualFriendAvatars?.length > 0 && (
-                    <div className="flex -space-x-2">
-                      {totalMutualFriendAvatars.slice(0, 4).map((av, idx) => (
-                        <img
-                          key={idx}
-                          src={av || 'https://via.placeholder.com/24'}
-                          alt=""
-                          className="w-5 h-5 rounded-full ring-2 ring-white object-cover"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <Users size={13} />
-                  <span>{totalMutualCount || totalMutualFriendAvatars?.length || 0} bạn chung</span>
-                </button>
+              {profileUser?.education && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                  <span className="text-slate-400 block mb-1">Học vấn</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {profileUser.education}
+                  </span>
+                </div>
+              )}
+              {profileUser?.company && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                  <span className="text-slate-400 block mb-1">Công ty</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {profileUser.company}
+                  </span>
+                </div>
+              )}
+              {profileUser?.profileVisibility && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                  <span className="text-slate-400 block mb-1">Quyền riêng tư hồ sơ</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {profileUser.profileVisibility}
+                  </span>
+                </div>
               )}
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2.5 flex-shrink-0" ref={menuRef}>
-            {isOwnProfile ? (
-              <button
-                type="button"
-                onClick={() => setShowEditProfileModal(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 px-5 py-2.5 text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm"
-              >
-                <Edit3 size={15} />
-                Chỉnh sửa trang cá nhân
-              </button>
-            ) : (
-
-              isAuthenticated && (
-                <>
-                  {isFriend ? (
-                    <button
-                      onClick={handleUnfriend}
-                      className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-bold transition shadow-sm bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 active:scale-95"
-                      title="Nhấn để hủy kết bạn"
-                    >
-                      <UserCheck size={15} />
-                      Bạn bè
-                    </button>
-                  ) : requestSent ? (
-                    <button
-                      onClick={handleCancelFriendRequest}
-                      className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-bold transition shadow-sm bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95 border border-amber-200"
-                      title="Nhấn để hủy lời mời đã gửi"
-                    >
-                      <UserX size={15} />
-                      Hủy lời mời
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleSendFriendRequest}
-                      className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-bold transition shadow-sm bg-blue-600 hover:bg-blue-700 text-white active:scale-95"
-                    >
-                      <UserPlus size={15} />
-                      Kết bạn
-                    </button>
-                  )}
-
-                  {/* Message button — only on other user's profile */}
-                  <button
-                    type="button"
-                    onClick={handleStartChat}
-                    disabled={isStartingChat}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2.5 text-xs font-bold transition active:scale-95 disabled:opacity-50"
-                    title="Nhắn tin riêng tư"
-                  >
-                    <MessageSquare size={15} />
-                    <span>{isStartingChat ? 'Đang mở...' : 'Nhắn tin'}</span>
-                  </button>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowMenu(!showMenu)}
-                      className="p-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-
-                    {showMenu && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white rounded-2xl shadow-xl py-1 border border-gray-100 z-30 text-xs">
-                        <button
-                          onClick={handleBlockUser}
-                          className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 flex items-center gap-2 font-semibold"
-                        >
-                          <Ban size={15} />
-                          Chặn người dùng
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* Tab Bar */}
-        <div className="flex border-t border-gray-100 px-6 overflow-x-auto scrollbar-none">
-          {[
-            { key: 'posts', label: 'Bài viết', icon: Grid },
-            { key: 'reels', label: 'Reels', icon: Clapperboard },
-            { key: 'friends', label: 'Bạn bè', icon: Users },
-            ...(isOwnProfile ? [{ key: 'saved', label: 'Đã lưu', icon: Bookmark }] : []),
-          ].map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`py-3.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === key
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              <Icon size={16} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
+        )}
       </div>
-
-      {/* ── 2-Column Layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* ── LEFT SIDEBAR: About + Friends preview ── */}
-        <div className="space-y-4">
-          {/* About Card */}
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 text-base mb-4 flex items-center gap-2">
-              <Info size={16} className="text-blue-600" />
-              Giới thiệu
-            </h3>
-
-            {(isPrivateProfile || isFriendOnlyProfile) ? (
-              <div className="text-center py-4">
-                <Lock size={28} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-500 font-medium">
-                  {isPrivateProfile
-                    ? 'Trang cá nhân này ở chế độ riêng tư'
-                    : 'Chỉ bạn bè mới xem được thông tin này'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3 text-sm">
-                {/* ── Bio ── */}
-                {(bio || isOwnProfile) && (
-                  <div className="group flex items-start gap-2">
-                    <p className="flex-1 text-gray-700 leading-relaxed italic border-l-2 border-blue-200 pl-3">
-                      {bio ? `"${bio}"` : (
-                        <span className="text-gray-400 not-italic">Thêm giới thiệu về bạn…</span>
-                      )}
-                    </p>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'BIO',
-                          fieldLabel: 'Giới thiệu bản thân',
-                          fieldType: 'textarea',
-                          initialValue: bio || '',
-                          maxLength: 500,
-                          placeholder: 'Viết vài dòng giới thiệu về bạn…',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa giới thiệu"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Occupation + Company ── */}
-                {(occupation || isOwnProfile) && (
-                  <div className="group flex items-start gap-2.5 text-gray-700">
-                    <Briefcase size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span className="flex-1">
-                      {occupation
-                        ? <>{occupation}{company && <span className="text-gray-500"> tại <strong>{company}</strong></span>}</>
-                        : <span className="text-gray-400 text-xs">Thêm nghề nghiệp…</span>
-                      }
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'OCCUPATION',
-                          fieldLabel: 'Nghề nghiệp',
-                          fieldType: 'text',
-                          initialValue: occupation || '',
-                          maxLength: 100,
-                          placeholder: 'Lập trình viên, Giáo viên…',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa nghề nghiệp"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Company (riêng nếu có occupation) ── */}
-                {occupation && (company || isOwnProfile) && (
-                  <div className="group flex items-start gap-2.5 text-gray-700 pl-6">
-                    <span className="flex-1 text-xs text-gray-500">
-                      {company
-                        ? <>tại <strong>{company}</strong></>
-                        : <span className="text-gray-400">Thêm công ty…</span>
-                      }
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'COMPANY',
-                          fieldLabel: 'Công ty / Nơi làm việc',
-                          fieldType: 'text',
-                          initialValue: company || '',
-                          maxLength: 100,
-                          placeholder: 'Tên công ty, tổ chức…',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa công ty"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Education ── */}
-                {(education || isOwnProfile) && (
-                  <div className="group flex items-start gap-2.5 text-gray-700">
-                    <GraduationCap size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span className="flex-1">
-                      {education || <span className="text-gray-400 text-xs">Thêm học vấn…</span>}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'EDUCATION',
-                          fieldLabel: 'Học vấn',
-                          fieldType: 'text',
-                          initialValue: education || '',
-                          maxLength: 150,
-                          placeholder: 'Đại học Bách Khoa Hà Nội…',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa học vấn"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Location ── */}
-                {((city || country) || isOwnProfile) && (
-                  <div className="group flex items-center gap-2.5 text-gray-700">
-                    <MapPin size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1">
-                      {[city, district, country].filter(Boolean).join(', ') || (
-                        <span className="text-gray-400 text-xs">Thêm địa điểm…</span>
-                      )}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'CITY',
-                          fieldLabel: 'Thành phố',
-                          fieldType: 'text',
-                          initialValue: city || '',
-                          maxLength: 100,
-                          placeholder: 'Hà Nội, TP. Hồ Chí Minh…',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa thành phố"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Phone ── */}
-                {(phone || isOwnProfile) && (
-                  <div className="group flex items-center gap-2.5 text-gray-700">
-                    <Phone size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1">
-                      {phone || <span className="text-gray-400 text-xs">Thêm số điện thoại…</span>}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'PHONE',
-                          fieldLabel: 'Số điện thoại',
-                          fieldType: 'text',
-                          initialValue: phone || '',
-                          placeholder: '0912 345 678',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa số điện thoại"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Website ── */}
-                {(website || isOwnProfile) && (
-                  <div className="group flex items-center gap-2.5 text-gray-700">
-                    <Globe size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1">
-                      {website ? (
-                        <a href={website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
-                          {website}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs">Thêm website…</span>
-                      )}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'WEBSITE',
-                          fieldLabel: 'Website',
-                          fieldType: 'text',
-                          initialValue: website || '',
-                          maxLength: 255,
-                          placeholder: 'https://yourwebsite.com',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa website"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Gender ── */}
-                {(gender || isOwnProfile) && (
-                  <div className="group flex items-center gap-2.5 text-gray-700">
-                    <User size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1">
-                      {gender ? (
-                        gender === 'MALE' ? 'Nam' : gender === 'FEMALE' ? 'Nữ' : 'Khác'
-                      ) : (
-                        <span className="text-gray-400 text-xs">Thêm giới tính…</span>
-                      )}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'GENDER',
-                          fieldLabel: 'Giới tính',
-                          fieldType: 'select',
-                          fieldOptions: [
-                            { value: 'MALE', label: 'Nam' },
-                            { value: 'FEMALE', label: 'Nữ' },
-                            { value: 'OTHER', label: 'Khác' },
-                          ],
-                          initialValue: gender || 'MALE',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa giới tính"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Date of Birth ── */}
-                {(dateOfBirth || isOwnProfile) && (
-                  <div className="group flex items-center gap-2.5 text-gray-700">
-                    <Calendar size={15} className="text-gray-400 flex-shrink-0" />
-                    <span className="flex-1">
-                      {dateOfBirth ? (
-                        String(dateOfBirth).substring(0, 10)
-                      ) : (
-                        <span className="text-gray-400 text-xs">Thêm ngày sinh…</span>
-                      )}
-                    </span>
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => openEditModal({
-                          fieldName: 'DATE_OF_BIRTH',
-                          fieldLabel: 'Ngày sinh',
-                          fieldType: 'date',
-                          initialValue: dateOfBirth ? String(dateOfBirth).substring(0, 10) : '',
-                        })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Chỉnh sửa ngày sinh"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Social Links ── */}
-                {socialLinks && Object.entries(socialLinks).some(([, v]) => v) && (
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
-                    <p className="text-xs font-semibold text-gray-400 flex items-center gap-1">
-                      <LinkIcon size={12} />
-                      Liên kết
-                    </p>
-                    {Object.entries(socialLinks).map(([key, url]) =>
-                      url ? (
-                        <a
-                          key={key}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 text-xs text-blue-600 hover:underline truncate"
-                        >
-                          <span className="capitalize font-semibold text-gray-500">{key}:</span>
-                          <span className="truncate">{url}</span>
-                        </a>
-                      ) : null
-                    )}
-                  </div>
-                )}
-
-                {/* ── Placeholder khi chưa có gì ── */}
-                {!bio && !occupation && !education && !city && !phone && !website && !gender && !dateOfBirth && !isOwnProfile && (
-                  <p className="text-xs text-gray-400 text-center py-2">Chưa có thông tin giới thiệu</p>
-                )}
-
-                {/* ── Mở modal chỉnh sửa chi tiết ── */}
-                {isOwnProfile && (
-                  <button
-                    type="button"
-                    onClick={() => setShowEditProfileModal(true)}
-                    className="mt-1 w-full text-center text-xs font-semibold text-blue-600 hover:bg-blue-50 py-2 rounded-xl transition cursor-pointer"
-                  >
-                    Chỉnh sửa chi tiết thông tin
-                  </button>
-                )}
-              </div>
-
-            )}
-          </div>
-
-          {/* Friends preview card in sidebar */}
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Users size={16} className="text-blue-600" />
-                Bạn bè
-                <span className="text-xs font-normal text-gray-400">({friendsCount})</span>
-              </h3>
-              <button
-                onClick={() => setActiveTab('friends')}
-                className="text-xs font-semibold text-blue-600 hover:underline"
-              >
-                Xem tất cả
-              </button>
-            </div>
-
-            {!isPrivateProfile && !isFriendOnlyProfile ? (
-              <div className="grid grid-cols-3 gap-2">
-                {friends.slice(0, 6).map((f) => {
-                  const fId = f.userId || f.id;
-                  return (
-                    <Link key={fId} to={`/users/${fId}`} className="group text-center">
-                      <img
-                        src={f.avatarUrl || 'https://via.placeholder.com/64'}
-                        alt=""
-                        className="w-full aspect-square rounded-xl object-cover border border-gray-100 group-hover:opacity-90 transition"
-                      />
-                      <p className="mt-1 text-[10px] text-gray-600 truncate font-medium group-hover:text-blue-600 transition">
-                        {f.fullName || f.username}
-                      </p>
-                    </Link>
-                  );
-                })}
-                {friends.length === 0 && !loadingFriends && (
-                  <p className="col-span-3 text-xs text-gray-400 text-center py-2">Chưa có bạn bè</p>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-3">
-                <Lock size={24} className="mx-auto text-gray-300 mb-1" />
-                <p className="text-xs text-gray-400">Danh sách bạn bè bị ẩn</p>
-              </div>
-            )}
-          </div>
-
-          {/* Own Story card in sidebar */}
-          {isOwnProfile && myStories.length > 0 && (
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                  <Camera size={16} className="text-pink-500" />
-                  Tin của bạn
-                  <span className="text-xs font-normal text-gray-400">({myStories.length})</span>
-                </h3>
-                <button
-                  onClick={() => setStoryViewer({ open: true, index: 0, stories: storyCardsForViewer })}
-                  className="text-xs font-semibold text-blue-600 hover:underline"
-                >
-                  Xem tất cả
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {myStories.slice(0, 6).map((s, idx) => {
-                  const viewers = s.interactions?.length || s.viewers?.length || s.viewCount || 0;
-                  return (
-                    <button
-                      key={s.storyId || s.id || idx}
-                      onClick={() => setStoryViewer({ open: true, index: idx, stories: storyCardsForViewer })}
-                      className="relative group rounded-xl overflow-hidden aspect-square bg-gray-900"
-                    >
-                      {s.mediaType === 'VIDEO' ? (
-                        <>
-                          <video src={s.url || s.mediaUrl} className="w-full h-full object-cover opacity-80" />
-                          <Play size={16} className="absolute inset-0 m-auto text-white drop-shadow" />
-                        </>
-                      ) : (
-                        <img src={s.url || s.mediaUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform opacity-85" />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      {viewers > 0 && (
-                        <div className="absolute bottom-1 left-1 right-1 flex items-center gap-0.5 text-white text-[9px] font-semibold">
-                          <Eye size={9} />
-                          <span>{viewers}</span>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── RIGHT MAIN CONTENT ── */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Posts Tab */}
-          {activeTab === 'posts' && (
-            <>
-              {isOwnProfile && (
-                <CreatePostForm onPostCreated={handlePostCreated} />
-              )}
-              {loadingPosts ? (
-                <div className="py-16 flex justify-center">
-                  <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : posts.length > 0 ? (
-                posts.map((post, idx) => (
-                  <PostCard
-                    key={`profile-post-${post.id || idx}-${idx}`}
-                    post={post}
-                    onPostDeleted={(pId) => setPosts((prev) => prev.filter((p) => p.id !== pId))}
-                  />
-                ))
-              ) : (
-                <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100">
-                  <Grid size={32} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500 text-sm font-semibold">Chưa có bài viết nào.</p>
-                  {isOwnProfile && (
-                    <p className="text-xs text-gray-400 mt-1">Hãy chia sẻ khoảnh khắc đầu tiên của bạn!</p>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Reels Tab */}
-          {activeTab === 'reels' && (
-            <div className="space-y-4">
-              {loadingReels ? (
-                <div className="py-16 flex justify-center">
-                  <div className="w-8 h-8 border-3 border-pink-600 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : userReels.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {userReels.map((reel, idx) => (
-                    <Link
-                      key={`profile-reel-${reel.id || idx}-${idx}`}
-                      to={`/reels?reelId=${reel.id}`}
-                      className="group relative rounded-2xl overflow-hidden aspect-[9/16] bg-black shadow-md block"
-                    >
-                      {reel.thumbnailUrl ? (
-                        <img
-                          src={reel.thumbnailUrl}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90 group-hover:opacity-100"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-tr from-gray-900 to-gray-800 flex items-center justify-center">
-                          <Clapperboard size={28} className="text-white/40" />
-                        </div>
-                      )}
-
-                      {/* Overlay gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-
-                      {/* Play icon on hover */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white shadow-lg">
-                          <Play size={20} fill="currentColor" className="ml-0.5" />
-                        </div>
-                      </div>
-
-                      {/* Top Duration Badge */}
-                      {reel.durationSeconds > 0 && (
-                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded-md text-[10px] font-bold text-white">
-                          {reel.durationSeconds}s
-                        </div>
-                      )}
-
-                      {/* Bottom Info: Views & Likes */}
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-[11px] font-bold drop-shadow">
-                        <div className="flex items-center gap-1">
-                          <Play size={11} fill="currentColor" />
-                          <span>{reel.viewCount || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-rose-300">
-                          <Heart size={11} fill="currentColor" />
-                          <span>{reel.reactionCount || 0}</span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100 space-y-2">
-                  <div className="w-14 h-14 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center mx-auto shadow-inner">
-                    <Clapperboard size={28} />
-                  </div>
-                  <p className="text-gray-700 font-bold text-sm">Chưa có video Reel nào</p>
-                  <p className="text-xs text-gray-400">
-                    {isOwnProfile
-                      ? 'Hãy tạo video Reel đầu tiên để chia sẻ với mọi người!'
-                      : 'Người dùng này chưa đăng video Reel nào.'}
-                  </p>
-                  {isOwnProfile && (
-                    <Link
-                      to="/reels"
-                      className="inline-block mt-2 px-5 py-2 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-2xl text-xs font-bold shadow transition"
-                    >
-                      + Tạo Reel mới
-                    </Link>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Friends Tab */}
-          {activeTab === 'friends' && (
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
-              {/* Sub-tab switcher */}
-              <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
-                <div className="flex bg-gray-100/80 p-1 rounded-2xl gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setFriendsSubTab('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
-                      friendsSubTab === 'all'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Tất cả ({friendsCount})
-                  </button>
-
-                  {!isOwnProfile && (totalMutualCount > 0 || totalMutualFriendAvatars?.length > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => setFriendsSubTab('mutual')}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                        friendsSubTab === 'mutual'
-                          ? 'bg-white text-blue-600 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      <Users size={13} className="text-blue-600" />
-                      <span>Bạn chung ({totalMutualCount || totalMutualFriendAvatars?.length || 0})</span>
-                    </button>
-                  )}
-                </div>
-
-                {!isOwnProfile && (totalMutualCount > 0 || totalMutualFriendAvatars?.length > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => setShowMutualModal(true)}
-                    className="ml-auto text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-100 transition flex items-center gap-1 active:scale-95"
-                  >
-                    <Eye size={13} />
-                    Xem popup
-                  </button>
-                )}
-              </div>
-
-              {/* Content */}
-              {friendsSubTab === 'mutual' && !isOwnProfile ? (
-                <div>
-                  {loadingMutualFriends ? (
-                    <div className="py-12 flex justify-center">
-                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : mutualFriends.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {mutualFriends.map((f) => {
-                        const fId = f.userId || f.id;
-                        return (
-                          <Link
-                            key={fId}
-                            to={`/users/${fId}`}
-                            className="flex items-center gap-3.5 p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50 hover:border-blue-100 hover:shadow-sm transition group bg-white"
-                          >
-                            <img
-                              src={f.avatarUrl || 'https://via.placeholder.com/48'}
-                              alt=""
-                              className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm group-hover:scale-105 transition-transform"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-gray-900 text-xs sm:text-sm truncate group-hover:text-blue-600 transition-colors">
-                                {f.fullName || f.username}
-                              </p>
-                              <p className="text-[11px] text-gray-400 truncate">@{f.username}</p>
-                            </div>
-                            <Users size={14} className="text-blue-400 flex-shrink-0" />
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="py-8 text-center text-xs text-gray-400">Không có bạn chung nào.</p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  {loadingFriends ? (
-                    <div className="py-12 flex justify-center">
-                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : friends.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {friends.map((f) => {
-                        const fId = f.userId || f.id;
-                        return (
-                          <Link
-                            key={fId}
-                            to={`/users/${fId}`}
-                            className="flex items-center gap-3.5 p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50 hover:border-blue-100 hover:shadow-sm transition group bg-white"
-                          >
-                            <img
-                              src={f.avatarUrl || 'https://via.placeholder.com/48'}
-                              alt=""
-                              className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm group-hover:scale-105 transition-transform"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-gray-900 text-xs sm:text-sm truncate group-hover:text-blue-600 transition-colors">
-                                {f.fullName || f.username}
-                              </p>
-                              <p className="text-[11px] text-gray-400 truncate">@{f.username}</p>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="py-8 text-center text-xs text-gray-400">Chưa có bạn bè nào.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Saved Posts Tab */}
-          {activeTab === 'saved' && isOwnProfile && (
-            <div className="space-y-5">
-              {savedPosts.length > 0 ? (
-                savedPosts.map((post, idx) => (
-                  <PostCard
-                    key={`profile-saved-${post.id || idx}-${idx}`}
-                    post={post}
-                    onPostDeleted={(pId) =>
-                      setSavedPosts((prev) => prev.filter((p) => p.id !== pId))
-                    }
-                  />
-                ))
-              ) : (
-                <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100">
-                  <Bookmark size={32} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500 text-sm font-semibold">Bạn chưa lưu bài viết nào.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mutual Friends Modal */}
-      {!isOwnProfile && (
-        <MutualFriendsModal
-          isOpen={showMutualModal}
-          onClose={() => setShowMutualModal(false)}
-          targetUserId={targetUserId}
-          targetUserName={profileData?.fullName || profileData?.username}
-        />
-      )}
-
-      {/* Story Viewer Modal (own profile) */}
-      {storyViewer.open && (
-        <StoryViewerModal
-          stories={storyViewer.stories}
-          initialIndex={storyViewer.index}
-          currentUserId={currentUserId}
-          onClose={() => setStoryViewer({ open: false, index: 0, stories: [] })}
-          onStoryDeleted={() => {
-            storyService.getMyStories()
-              .then((res) => {
-                const data = res.data?.data || [];
-                setMyStories(Array.isArray(data) ? data : []);
-              });
-          }}
-        />
-      )}
-
-      {/* ── Facebook-style Per-Field Edit Modal ── */}
-      <EditFieldModal
-        open={editModal.open}
-        onClose={closeEditModal}
-        fieldLabel={editModal.fieldLabel}
-        fieldType={editModal.fieldType}
-        fieldOptions={editModal.fieldOptions}
-        initialValue={editModal.initialValue}
-        maxLength={editModal.maxLength}
-        placeholder={editModal.placeholder}
-        onSave={(value) => handleFieldSave(editModal.fieldName, value)}
-      />
-
-      {/* ── Facebook-style Full Edit Profile Modal ── */}
-      <EditProfileModal
-        isOpen={showEditProfileModal}
-        onClose={() => setShowEditProfileModal(false)}
-        profileData={profileData}
-        onProfileUpdated={(updatedFields) => {
-          setProfileData((prev) => ({ ...prev, ...updatedFields }));
-          if (isOwnProfile && refreshUser) {
-            refreshUser();
-          }
-        }}
-      />
     </div>
   );
-}
+};
 
-
+export default ProfilePage;

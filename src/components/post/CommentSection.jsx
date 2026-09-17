@@ -51,11 +51,6 @@ function SingleComment({
   const isPostAuthor = !!(postAuthorId && commentUid && Number(postAuthorId) === Number(commentUid));
 
   const fetchReplies = async () => {
-    if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để xem phản hồi');
-      navigate('/login');
-      return;
-    }
     setLoadingReplies(true);
     try {
       const res = await commentService.getReplies(commentId, 0, 20);
@@ -73,7 +68,6 @@ function SingleComment({
     setShowPicker(false);
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để bày tỏ cảm xúc');
-      navigate('/login');
       return;
     }
     try {
@@ -265,7 +259,13 @@ function SingleComment({
 
           <button
             type="button"
-            onClick={() => onReplyClick && onReplyClick(comment)}
+            onClick={() => {
+              if (!isAuthenticated) {
+                toast.error('Vui lòng đăng nhập để phản hồi');
+                return;
+              }
+              onReplyClick && onReplyClick(comment);
+            }}
             className="hover:underline hover:text-gray-900 cursor-pointer"
           >
             Phản hồi
@@ -498,35 +498,47 @@ export default function CommentSection({ postId, postAuthorId, onCommentCountCha
       )}
 
       {/* ── Sticky Input Box (Instagram Style) ── */}
-      <form onSubmit={handleCreateComment} className="flex items-center gap-2.5">
-        <img
-          src={user?.avatarUrl || 'https://via.placeholder.com/36'}
-          alt=""
-          className="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-xs flex-shrink-0"
-        />
-        <div className="flex-1 relative flex items-center bg-gray-100 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-400 border border-transparent rounded-2xl transition">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder={
-              replyTarget
-                ? `Trả lời @${replyTarget.username || 'người dùng'}...`
-                : 'Thêm bình luận...'
-            }
-            className="w-full pl-3.5 pr-14 py-2.5 text-xs outline-none bg-transparent text-gray-900 placeholder-gray-400"
+      {isAuthenticated ? (
+        <form onSubmit={handleCreateComment} className="flex items-center gap-2.5">
+          <img
+            src={user?.avatarUrl || 'https://via.placeholder.com/36'}
+            alt=""
+            className="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-xs flex-shrink-0"
           />
+          <div className="flex-1 relative flex items-center bg-gray-100 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-400 border border-transparent rounded-2xl transition">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder={
+                replyTarget
+                  ? `Trả lời @${replyTarget.username || 'người dùng'}...`
+                  : 'Thêm bình luận...'
+              }
+              className="w-full pl-3.5 pr-14 py-2.5 text-xs outline-none bg-transparent text-gray-900 placeholder-gray-400"
+            />
 
-          <button
-            type="submit"
-            disabled={submitting || !newComment.trim()}
-            className="absolute right-2.5 px-2 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 disabled:opacity-30 disabled:hover:text-rose-600 transition cursor-pointer"
-          >
-            {submitting ? '...' : 'Đăng'}
-          </button>
+            <button
+              type="submit"
+              disabled={submitting || !newComment.trim()}
+              className="absolute right-2.5 px-2 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 disabled:opacity-30 disabled:hover:text-rose-600 transition cursor-pointer"
+            >
+              {submitting ? '...' : 'Đăng'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div
+          onClick={() => navigate('/login')}
+          className="p-3 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-800 rounded-2xl text-center cursor-pointer transition select-none flex items-center justify-between"
+        >
+          <span className="text-xs text-slate-500 dark:text-slate-400">Đăng nhập để tham gia thảo luận cùng cộng đồng...</span>
+          <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-3 py-1 rounded-xl shadow-xs">
+            Đăng nhập
+          </span>
         </div>
-      </form>
+      )}
     </div>
   );
 }

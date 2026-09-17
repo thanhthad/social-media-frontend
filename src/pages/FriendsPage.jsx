@@ -1,289 +1,349 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import friendshipService from '../services/friendshipService';
-import { useUser } from '../contexts/UserContext';
-import PendingFriendRequests from '../components/friend/PendingFriendRequests';
+import { Search, UserPlus, Users, UserCheck, MessageCircle, X, Shield, RefreshCw } from 'lucide-react';
+import Tabs from '../components/ui/Tabs';
+import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
-import { Users, UserPlus, UserCheck, Sparkles, Search, UserMinus, Clock, UserX } from 'lucide-react';
+import friendshipService from '../services/friendshipService';
+import blockService from '../services/blockService';
+import { useUser } from '../contexts/UserContext';
+import MutualFriendsModal from '../components/friend/MutualFriendsModal';
 
-export default function FriendsPage() {
-  const { user } = useUser();
-  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'requests' | 'suggestions'
-  const [friends, setFriends] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+export const FriendsPage = () => {
+  const { currentUserId } = useUser();
+  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sentRequests, setSentRequests] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
 
-  const fetchData = async () => {
-    if (!user?.id) return;
+  // Mutual friends modal
+  const [mutualModalUser, setMutualModalUser] = useState(null);
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [friendsRes, suggRes] = await Promise.all([
-        friendshipService.getFriends(user.id, 0, 50).catch(() => ({ data: { data: [] } })),
-        friendshipService.getFriendSuggestions().catch(() => ({ data: { data: [] } })),
+      if (currentUserId) {
+        const friendsRes = await friendshipService.getFriends(currentUserId, 0, 100);
+        const fData = friendsRes.data?.data?.content || friendsRes.data?.data || [];
+        setFriends(Array.isArray(fData) ? fData : []);
+      }
+
+      const [reqRes, suggRes] = await Promise.allSettled([
+        friendshipService.getPendingRequests(0, 50),
+        friendshipService.getFriendSuggestions(),
       ]);
 
-      const fList = friendsRes.data?.data?.content || friendsRes.data?.data || [];
-      const sList = suggRes.data?.data || [];
-      setFriends(Array.isArray(fList) ? fList : []);
-      setSuggestions(Array.isArray(sList) ? sList : []);
-    } catch (err) {
-      console.error('Failed to load friends data', err);
+      if (reqRes.status === 'fulfilled') {
+        const rData = reqRes.value.data?.data?.content || reqRes.value.data?.data || [];
+        setRequests(Array.isArray(rData) ? rData : []);
+      }
+      if (suggRes.status === 'fulfilled') {
+        const sData = suggRes.value.data?.data || [];
+        setSuggestions(Array.isArray(sData) ? sData : []);
+      }
+    } catch (e) {
+      console.warn('FriendsPage load error:', e?.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUserId]);
 
-  const handleSendRequest = async (targetId) => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const tabs = [
+    { id: 'all', label: 'Tất cả bạn bè', icon: Users, badge: friends.length },
+    { id: 'requests', label: 'Lời mời kết bạn', icon: UserCheck, badge: requests.length },
+    { id: 'suggestions', label: 'Gợi ý kết bạn', icon: UserPlus, badge: suggestions.length },
+  ];
+
+  const handleAccept = async (userId, name) => {
     try {
-      await friendshipService.sendFriendRequest(targetId);
-      setSentRequests((prev) => ({ ...prev, [targetId]: true }));
-      toast.success('Đã gửi lời mời kết bạn!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể gửi lời mời kết bạn');
+      await friendshipService.acceptFriendRequest(userId);
+      toast.success(`Đã chấp nhận lời mời từ ${name}!`);
+      setRequests((prev) => prev.filter((r) => (r.userId || r.id) !== userId));
+      loadData();
+    } catch (e) {
+      toast.error('Không thể chấp nhận kết bạn');
     }
   };
 
-  const handleCancelRequest = async (targetId) => {
+  const handleReject = async (userId) => {
     try {
-      await friendshipService.cancelFriendRequest(targetId);
-      setSentRequests((prev) => ({ ...prev, [targetId]: false }));
-      toast.success('Đã hủy lời mời kết bạn');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể hủy lời mời');
+      await friendshipService.rejectFriendRequest(userId);
+      toast('Đã gỡ lời mời kết bạn');
+      setRequests((prev) => prev.filter((r) => (r.userId || r.id) !== userId));
+    } catch (e) {
+      toast.error('Không thể từ chối lời mời');
     }
   };
 
-  const handleUnfriend = async (targetId) => {
-    if (window.confirm('Bạn có chắc muốn hủy kết bạn với người này?')) {
-      try {
-        await friendshipService.rejectFriendRequest(targetId);
-        setFriends((prev) => prev.filter((f) => (f.userId || f.id) !== targetId));
-        toast.success('Đã hủy kết bạn');
-      } catch (err) {
-        toast.error('Không thể hủy kết bạn');
-      }
+  const handleSendRequest = async (userId, name) => {
+    try {
+      await friendshipService.sendFriendRequest(userId);
+      toast.success(`Đã gửi lời mời kết bạn đến ${name}!`);
+      setSuggestions((prev) => prev.filter((s) => (s.userId || s.id) !== userId));
+    } catch (e) {
+      toast.error('Không thể gửi lời mời');
     }
   };
 
-  const filteredFriends = friends.filter((f) =>
-    (f.fullName || f.username || '')
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+  const handleUnfriend = async (userId, name) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy kết bạn với ${name}?`)) return;
+    try {
+      await friendshipService.cancelFriendRequest(userId);
+      toast.success(`Đã hủy kết bạn với ${name}`);
+      setFriends((prev) => prev.filter((f) => (f.userId || f.id) !== userId));
+    } catch (e) {
+      toast.error('Không thể hủy kết bạn');
+    }
+  };
+
+  const handleBlock = async (userId, name) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn chặn ${name}?`)) return;
+    try {
+      await blockService.blockUser(userId);
+      toast.success(`Đã chặn ${name}`);
+      setFriends((prev) => prev.filter((f) => (f.userId || f.id) !== userId));
+      setSuggestions((prev) => prev.filter((s) => (s.userId || s.id) !== userId));
+      setRequests((prev) => prev.filter((r) => (r.userId || r.id) !== userId));
+    } catch (e) {
+      toast.error('Không thể chặn người dùng');
+    }
+  };
+
+  // Filter friends
+  const filteredFriends = friends.filter((f) => {
+    const name = f.fullName || f.username || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
-    <div className="max-w-4xl mx-auto py-4 space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2.5">
-            <Users className="w-7 h-7 text-blue-600" />
-            Bạn bè & Kết nối
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Quản lý danh sách bạn bè và khám phá những người bạn mới.
-          </p>
+    <div className="w-full">
+      {/* Header & Tabs */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+              Bạn bè & Kết nối
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Quản lý danh sách kết nối xã hội của bạn trên SocialDB
+            </p>
+          </div>
+          <button
+            onClick={loadData}
+            className="p-2 text-slate-400 hover:text-indigo-600 self-end sm:self-center transition"
+            title="Tải lại"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex bg-gray-100/80 p-1 rounded-2xl gap-1">
-          <button
-            onClick={() => setActiveTab('friends')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'friends'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Bạn bè ({friends.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'requests'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Clock size={14} className="text-indigo-600" />
-            Lời mời kết bạn
-          </button>
-          <button
-            onClick={() => setActiveTab('suggestions')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'suggestions'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Sparkles size={14} className="text-amber-500" />
-            Gợi ý ({suggestions.length})
-          </button>
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm kiếm theo tên bạn bè..."
+            className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-600"
+          />
         </div>
+
+        <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} variant="pills" />
       </div>
 
-      {/* Friends Tab */}
-      {activeTab === 'friends' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm trong danh sách bạn bè..."
-              className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition"
-            />
-          </div>
-
-          {/* List */}
-          {loading ? (
-            <div className="py-16 flex justify-center">
-              <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : filteredFriends.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredFriends.map((f) => {
-                const fId = f.userId || f.id;
-                return (
-                  <div
-                    key={fId}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition bg-white group"
-                  >
-                    <Link
-                      to={`/users/${fId}`}
-                      className="flex items-center gap-3.5 min-w-0 flex-1"
-                    >
-                      <img
-                        src={f.avatarUrl || 'https://via.placeholder.com/48'}
-                        alt=""
-                        className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-bold text-gray-900 text-sm truncate group-hover:text-blue-600 transition">
-                          {f.fullName || f.username}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">@{f.username}</p>
-                      </div>
-                    </Link>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleUnfriend(fId)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
-                        title="Hủy kết bạn"
-                      >
-                        <UserMinus size={18} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-16 text-center text-gray-400 space-y-2">
-              <p className="font-semibold text-gray-600 text-sm">Chưa có bạn bè nào trong danh sách.</p>
-              <p className="text-xs">Chuyển sang tab Gợi ý để kết nối với những người bạn quen biết!</p>
-            </div>
-          )}
+      {/* Content Area */}
+      {loading ? (
+        <div className="py-16 text-center">
+          <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin mx-auto mb-3" />
+          <p className="text-xs text-slate-400">Đang tải dữ liệu bạn bè...</p>
         </div>
-      )}
+      ) : activeTab === 'all' ? (
+        filteredFriends.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredFriends.map((f) => {
+              const uId = f.userId || f.id;
+              const name = f.fullName || f.username || `User #${uId}`;
+              const avatar = f.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
 
-      {/* Requests Tab */}
-      {activeTab === 'requests' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-600" />
-              Lời mời kết bạn đã nhận
-            </h3>
-            <span className="text-xs text-gray-400">Yêu cầu đang chờ xác nhận</span>
-          </div>
-
-          <PendingFriendRequests onActionSuccess={() => fetchData()} />
-        </div>
-      )}
-
-      {/* Suggestions Tab */}
-      {activeTab === 'suggestions' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-          <h3 className="font-bold text-gray-800 text-sm mb-4">
-            Những người bạn có thể biết
-          </h3>
-
-          {loading ? (
-            <div className="py-16 flex justify-center">
-              <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : suggestions.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {suggestions.map((s) => {
-                const sId = s.userId || s.id;
-                const isSent = sentRequests[sId];
-                return (
-                  <div
-                    key={sId}
-                    className="p-4 rounded-2xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-md transition flex flex-col items-center text-center space-y-3"
-                  >
+              return (
+                <div
+                  key={uId}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition"
+                >
+                  <Link to={`/profile/${uId}`} className="flex items-center gap-3 min-w-0 group">
                     <img
-                      src={s.avatarUrl || 'https://via.placeholder.com/64'}
-                      alt=""
-                      className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
+                      src={avatar}
+                      alt={name}
+                      className="w-12 h-12 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
                     />
-                    <div className="w-full">
-                      <Link
-                        to={`/users/${sId}`}
-                        className="font-bold text-gray-900 text-sm hover:text-blue-600 truncate block"
-                      >
-                        {s.fullName || s.username}
-                      </Link>
-                      <p className="text-xs text-gray-400 truncate mt-0.5">
-                        {(s.mutualCount || s.mutualFriendsCount)
-                          ? `${s.mutualCount || s.mutualFriendsCount} bạn chung`
-                          : `@${s.username}`}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition">
+                        {name}
                       </p>
+                      <p className="text-[11px] text-slate-400">@{f.username || `user${uId}`}</p>
                     </div>
+                  </Link>
 
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => (isSent ? handleCancelRequest(sId) : handleSendRequest(sId))}
-                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${
-                        isSent
-                          ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                      }`}
-                      title={isSent ? 'Nhấn để hủy lời mời đã gửi' : 'Gửi lời mời kết bạn'}
+                      onClick={() => setMutualModalUser({ id: uId, name })}
+                      className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                      title="Xem bạn chung"
                     >
-                      {isSent ? (
-                        <>
-                          <UserX size={14} />
-                          <span>Hủy lời mời</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus size={14} />
-                          <span>Kết bạn</span>
-                        </>
-                      )}
+                      Bạn chung
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUnfriend(uId, name)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition"
+                      title="Hủy kết bạn"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBlock(uId, name)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                      title="Chặn người này"
+                    >
+                      <Shield className="w-4 h-4" />
                     </button>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="py-12 text-center text-xs text-gray-400">
-              Hiện chưa có thêm gợi ý kết bạn nào.
-            </p>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+            <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Chưa có bạn bè nào</p>
+            <p className="text-xs text-slate-400 mt-1">Hãy xem tab &quot;Gợi ý kết bạn&quot; để tìm thêm người quen!</p>
+          </div>
+        )
+      ) : activeTab === 'requests' ? (
+        requests.length > 0 ? (
+          <div className="space-y-3">
+            {requests.map((r) => {
+              const uId = r.userId || r.id;
+              const name = r.fullName || r.username || `User #${uId}`;
+              const avatar = r.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+
+              return (
+                <div
+                  key={uId}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs"
+                >
+                  <Link to={`/profile/${uId}`} className="flex items-center gap-3 min-w-0 group">
+                    <img
+                      src={avatar}
+                      alt=""
+                      className="w-11 h-11 rounded-full object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition">
+                        {name}
+                      </p>
+                      <p className="text-[11px] text-slate-400">Đã gửi cho bạn lời mời kết bạn</p>
+                    </div>
+                  </Link>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleAccept(uId, name)}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+                    >
+                      Chấp nhận
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReject(uId)}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition"
+                    >
+                      Từ chối
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+            <UserCheck className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Không có lời mời kết bạn nào</p>
+          </div>
+        )
+      ) : (
+        /* Suggestions tab */
+        suggestions.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {suggestions.map((s) => {
+              const uId = s.userId || s.id;
+              const name = s.fullName || s.name || s.userName || `User #${uId}`;
+              const avatar = s.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+              const reason = s.mutualFriendsCount
+                ? `${s.mutualFriendsCount} bạn chung`
+                : s.reason || 'Gợi ý kết bạn';
+
+              return (
+                <div
+                  key={uId}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs"
+                >
+                  <Link to={`/profile/${uId}`} className="flex items-center gap-3 min-w-0 group">
+                    <img
+                      src={avatar}
+                      alt=""
+                      className="w-11 h-11 rounded-full object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition">
+                        {name}
+                      </p>
+                      <p className="text-[11px] text-slate-400 truncate">{reason}</p>
+                    </div>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendRequest(uId, name)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-semibold transition shrink-0"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Kết bạn</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+            <UserPlus className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Không có gợi ý mới</p>
+          </div>
+        )
+      )}
+
+      {/* Mutual Friends Modal */}
+      {mutualModalUser && (
+        <MutualFriendsModal
+          isOpen={Boolean(mutualModalUser)}
+          targetUserId={mutualModalUser.id}
+          targetUserName={mutualModalUser.name}
+          onClose={() => setMutualModalUser(null)}
+        />
       )}
     </div>
   );
-}
+};
+
+export default FriendsPage;
