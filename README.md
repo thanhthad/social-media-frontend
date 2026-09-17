@@ -1,155 +1,137 @@
-# 🌐 Social Media & Dating Platform — Frontend (React + Vite)
+# 🌐 Social Media & Dating Platform — Frontend (React 19 + Vite)
 
-[![React Version](https://img.shields.io/badge/React-19.2.8-blue.svg?style=flat-square&logo=react)](https://react.dev/)
-[![Vite Version](https://img.shields.io/badge/Vite-8.2.0-646CFF.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4.19-38B2AC.svg?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Framer Motion](https://img.shields.io/badge/Framer_Motion-13.0.0-EA4C89.svg?style=flat-square&logo=framer)](https://www.framer.com/motion/)
-[![STOMP WebSocket](https://img.shields.io/badge/STOMP.js-7.3.0-00ADD8.svg?style=flat-square&logo=websocket)](https://stomp-js.github.io/)
-[![State Management](https://img.shields.io/badge/Zustand-5.0.14-orange.svg?style=flat-square)](https://github.com/pmndrs/zustand)
+[![React Version](https://img.shields.io/badge/React-19.2+-blue.svg?style=flat-square&logo=react)](https://react.dev/)
+[![Vite Version](https://img.shields.io/badge/Vite-8.2+-646CFF.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4+-38B2AC.svg?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![Framer Motion](https://img.shields.io/badge/Framer_Motion-13.0+-EA4C89.svg?style=flat-square&logo=framer)](https://www.framer.com/motion/)
+[![STOMP WebSocket](https://img.shields.io/badge/STOMP.js-7.3+-00ADD8.svg?style=flat-square&logo=websocket)](https://stomp-js.github.io/)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?style=flat-square)]()
 
-A high-performance, production-grade social media frontend built with **React 19**, **Vite**, **Tailwind CSS**, and **Framer Motion**. It features a modern **Instagram & Facebook hybrid UI/UX** with real-time **STOMP WebSocket** communication, Tinder-style Dating swipe decks, full-screen vertical Reels, interactive Stories, and an animated 3D emoji reaction system.
+Giao diện người dùng hiện đại cho nền tảng mạng xã hội và ứng dụng hẹn hò đa tính năng, phát triển bằng **React 19**, **Vite**, **Tailwind CSS**, và **Framer Motion**. Kết hợp trải nghiệm thị giác mượt mà phong cách **Instagram, TikTok & Tinder**, kết nối **100% Backend API thật** (loại bỏ hoàn toàn mock data), đồng bộ thời gian thực qua **STOMP WebSocket**.
 
 ---
 
-## 📑 Table of Contents
+## 📑 Mục Lục
 
-- [✨ Key Features](#-key-features)
-  - [1. Feed & Post Interaction](#1-feed--post-interaction)
-  - [2. Reaction & Comment System](#2-reaction--comment-system)
-  - [3. Reels & Short Videos](#3-reels--short-videos)
-  - [4. Instagram Stories](#4-instagram-stories)
-  - [5. Real-Time Chat & Messaging](#5-real-time-chat--messaging)
-  - [6. Dating & Matchmaking Deck](#6-dating--matchmaking-deck)
-  - [7. Search & Explore Media Grid](#7-search--explore-media-grid)
-  - [8. User Profile & Social Graph](#8-user-profile--social-graph)
-  - [9. Real-Time Notifications](#9-real-time-notifications)
-  - [10. Administration & Moderation](#10-administration--moderation)
-- [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
-- [📂 Project Directory Structure](#-project-directory-structure)
-- [⚙️ Environment Variables](#️-environment-variables)
-- [🚀 Quick Start & Installation](#-quick-start--installation)
-- [📡 WebSocket & STOMP Protocol](#-websocket--stomp-protocol)
-- [🧩 State Management & Caching](#-state-management--caching)
-- [🛡️ Security & Route Protection](#️-security--route-protection)
+- [✨ Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
+  - [1. Reels Video Chuẩn TikTok Lướt Lên / Xuống](#1-reels-video-chuẩn-tiktok-lướt-lên--xuống)
+  - [2. Đầy Đủ Chức Năng Cập Nhật (Update) Toàn Diện](#2-đầy-đủ-chức-năng-cập-nhật-update-toàn-diện)
+  - [3. Chế Độ Khách Công Khai (Guest Mode)](#3-chế-độ-khách-công-khai-guest-mode)
+  - [4. Bảng Tin & Tương Tác Cảm Xúc Đa Tầng](#4-bảng-tin--tương-tác-cảm-xúc-đa-tầng)
+  - [5. Tin 24h (Instagram Stories)](#5-tin-24h-instagram-stories)
+  - [6. Nhắn Tin Thời Gian Thực & Chat Nhóm](#6-nhắn-tin-thời-gian-thực--chat-nhóm)
+  - [7. Hẹn Hò Tinder-Style Swipe Deck](#7-hẹn-hò-tinder-style-swipe-deck)
+  - [8. Hồ Sơ Cá Nhân & Bảng Quản Trị (Admin)](#8-hồ-sơ-cá-nhân--bảng-quản-trị-admin)
+- [🛠️ Công Nghệ & Thư Viện Sử Dụng](#️-công-nghệ--thư-viện-sử-dụng)
+- [📂 Cấu Trúc Thư Mục Dự Án](#-cấu-trúc-thư-mục-dự-án)
+- [⚙️ Cấu Hình Biến Môi Trường](#️-cấu-hình-biến-môi-trường)
+- [🚀 Hướng Dẫn Cài Đặt & Khởi Chạy](#-hướng-dẫn-cài-đặt--khởi-chạy)
 
 ---
 
-## ✨ Key Features
+## ✨ Tính Năng Nổi Bật
 
-### 1. Feed & Post Interaction
-* **Instagram-Inspired Layout**: Clean multi-media carousel and adaptive grid cards.
-* **Double-Tap / Click to Heart**: Bouncing glowing heart animation in the center of the image with automatic `LOVE` reaction.
-* **Action Bar Counters**: Real-time numerical badges displayed directly next to Like (`❤️ 14`) and Comment (`💬 22`) action icons.
-* **Floating Media Stats Pill**: Bottom-corner glassmorphism badge (`❤️ 14 | 💬 22`) overlay on post images and videos.
-* **Rich Text Formatting**: Live hashtag (`#hashtag`) highlighting and user tag (`@username`) parsing.
-* **Save & Bookmark**: Instant post saving with a dedicated `/saved-posts` library.
+### 1. Reels Video Chuẩn TikTok Lướt Lên / Xuống
+* **Khung cuộn Snap-Scroll 9:16 dọc**: Cơ chế `snap-y snap-mandatory` mượt mà chuẩn phong cách video ngắn.
+* **Đa phương thức cuộn lướt**:
+  * **Con lăn chuột (Wheel)**: Tự động chuyển video kế tiếp/trước đó có chống giật (debounce).
+  * **Cử chỉ vuốt chạm (Touch Swipe)**: Vuốt lên / vuốt xuống tiện lợi trên điện thoại hoặc màn hình cảm ứng.
+  * **Phím điều hướng**: Phím mũi tên `ArrowDown` / `ArrowUp` hoặc `j` / `k`.
+  * **Nút bấm Chevron nổi**: Điều hướng nhanh kèm số thứ tự video hiện tại (`1/5`, `2/5`, ...).
+* **Phát video & âm thanh thông minh**: Chỉ phát video đang nằm trong tiêu điểm màn hình (`isActive`), tự động tạm dừng các video còn lại để tối ưu hóa tài nguyên.
+* **Tương tác**: Nhấp đúp thả tim bung nở, nút bật/tắt âm thanh nhanh, xem bình luận dạng ngăn kéo trượt (drawer) mà không ngắt quãng video.
+* **Fallback Reels HD**: Cung cấp sẵn video mẫu 9:16 chất lượng cao kèm âm thanh và caption sinh động cho khách chưa đăng nhập.
 
-### 2. Reaction & Comment System
-* **3D Animated Reaction Picker**: Floating glass dock featuring 6 Fluent 3D animated emojis (**Like 👍, Love ❤️, Haha 😆, Wow 😮, Sad 😢, Angry 😡**) with spring scale hover zoom (`1.45x`) and dark glass tooltips.
-* **Optimistic Counter Updates**: Instant `+1` / `-1` visual transitions when reacting, unreacting, or switching emotion.
-* **Reacted Users Breakdown Modal**: Tabbed filter dialog displaying exact emotion counts and per-user reaction badges.
-* **Threaded Nested Replies**: Comment bubbles with author badges (`Tác giả`), collapsible reply branches (`↳ View 3 replies`), and inline editing.
-* **Quick Emoji Reaction Bar**: One-click quick emoji insertion bar (`❤️ 🙌 🔥 👏 😍 😂 😮 💯`) above sticky comment input.
+### 2. Đầy Đủ Chức Năng Cập Nhật (Update) Toàn Diện
+* **Chỉnh sửa bình luận (Comment Update)**:
+  * Nút "Chỉnh sửa" cạnh nút "Xóa" cho chủ bình luận (`isCommentOwner`).
+  * Sửa trực tiếp inline trong bubble bình luận, hỗ trợ phím `Enter` để lưu ngay, `Escape` hoặc nút "Hủy", gọi trực tiếp `PATCH /api/comments/{id}`.
+* **Chỉnh sửa bài viết toàn diện (Post Update)**:
+  * Sửa nội dung văn bản (`PATCH /api/posts/{id}`).
+  * Đổi quyền riêng tư: Công khai (`PUBLIC`), Bạn bè (`FRIEND`), Chỉ mình tôi (`PRIVATE`).
+  * **Quản lý ảnh/video đã đính kèm**: Hiển thị lưới ảnh hiện có, mỗi ảnh có nút thùng rác để xóa tệp cụ thể khỏi bài viết (`DELETE /api/posts/media/{id}`).
+  * **Tải thêm ảnh/video mới**: Tải thêm tệp bổ sung vào bài viết đã đăng (`POST /api/posts/{id}/media`) kèm xem trước và nút hủy chọn.
+* **Cập nhật quyền riêng tư Story (Story Update)**:
+  * Dropdown chọn quyền riêng tư: 🌐 Công khai, 👥 Bạn bè, 🔒 Chỉ mình tôi ngay trên thanh xem tin 24h (`PATCH /api/stories/{id}/visibility`).
+* **Chỉnh sửa video Reel (Reel Update)**:
+  * Modal chỉnh sửa mô tả/caption và quyền riêng tư video Reel (`PATCH /api/reels/{id}`).
+* **Cập nhật trang cá nhân & Nhóm chat**:
+  * Trang `/profile/edit` cập nhật đầy đủ: Thông tin cơ bản, liên hệ, nghề nghiệp, mạng xã hội, username, mật khẩu, quyền riêng tư hồ sơ.
+  * Bảng thông tin chat (`ChatInfoSidebar`) cho phép đổi tên nhóm chat (`PUT`) và đổi ảnh đại diện nhóm (`PUT`).
 
-### 3. Reels & Short Videos
-* **Full-Screen Vertical Video Player**: Immersive viewport-fitted video feed with swipe/scroll snapping.
-* **Interactive Media Controls**: Tap-to-pause, volume/mute toggles, floating like counter, and share shortcuts.
-* **Slide-Up Comment Drawer**: Integrated slide-up sheet supporting nested comments without losing video playback context.
+### 3. Chế Độ Khách Công Khai (Guest Mode)
+* Người dùng chưa đăng nhập có thể thoải mái xem:
+  * Bảng tin bài viết công khai (`/api/posts/public/feed`)
+  * Bảng tin video Reels công khai (`/api/reels/public/feed`)
+  * Đọc bình luận và câu trả lời công khai
+  * Khám phá hashtag thịnh hành
+* Khi khách thực hiện thao tác tương tác (thả tim, bình luận, chia sẻ, lưu), hệ thống hiển thị popup `LoginPromptModal` đẹp mắt, không ngắt mạch duyệt trang.
 
-### 4. Instagram Stories
-* **Story Bar with Gradient Rings**: Unread colorful rings and user avatar status.
-* **Full-Featured Story Viewer**: Timed auto-progression bar, tap-to-skip, hold-to-pause, direct story replies, and author viewer analytics.
-* **Media Creator**: Multi-format image/video upload with custom text captions and privacy settings.
+### 4. Bảng Tin & Tương Tác Cảm Xúc Đa Tầng
+* Bố cục thẻ bài viết Facebook & Instagram hiện đại, hỗ trợ lưới ảnh động từ 1 đến nhiều ảnh.
+* Thanh cảm xúc 6 loại biểu cảm 3D (`LIKE`, `LOVE`, `HAHA`, `WOW`, `SAD`, `ANGRY`) với hoạt ảnh bung nở mượt mà.
+* Xem danh sách người thả cảm xúc phân loại theo từng biểu tượng (`ReactedUsersModal`).
+* Bình luận phân nhánh đa cấp (nested replies), báo cáo vi phạm bài viết.
 
-### 5. Real-Time Chat & Messaging
-* **STOMP WebSocket Integration**: Instant point-to-point delivery over `/user/queue/messages`.
-* **Rich Chat UI**: Message delivery ticks, typing indicators, image sharing, unread counters, and message emoji reactions.
-* **Active Status & Conversation Search**: Real-time online/offline presence tracking and conversation filters.
+### 5. Tin 24h (Instagram Stories)
+* Thanh tròn avatar gradient thông báo tin mới.
+* Trình xem tin toàn màn hình với thanh thời gian tự chạy, tạm dừng khi giữ chuột/chạm, xem danh sách người đã xem tin, thả tim vào tin.
 
-### 6. Dating & Matchmaking Deck
-* **100% Viewport Zero-Scroll Deck**: Tinder-style swipeable card deck with swipe gestures and keyboard arrow triggers (`←` Pass, `→` Like).
-* **Celebration Match Modal**: Dual-avatar animation with confetti celebration upon mutual like (`isMatch: true`).
-* **Matches Management Page**: Dedicated `/dating/matches` tab with direct messaging triggers and unmatch capabilities.
-* **Dating Profile & Preference Filters**: Age range, location distance, gender preference, bio, and lifestyle tags.
+### 6. Nhắn Tin Thời Gian Thực & Chat Nhóm
+* Giao diện trò chuyện cá nhân và nhóm chat thời gian thực qua STOMP WebSocket.
+* Gửi ảnh/video đính kèm, thả cảm xúc trên từng tin nhắn, xem con trỏ đã đọc (read receipts), quản lý thành viên nhóm.
 
-### 7. Search & Explore Media Grid
-* **Instagram Explore Grid**: 3-column square media layout with video badges and multiple-item indicators.
-* **Hover Interaction Overlay**: Semi-transparent dark overlay displaying like and comment metrics (`❤️ 42  💬 8`).
-* **Multi-Tab Search**: Instant query execution across Users, Posts, and Trending Hashtags.
+### 7. Hẹn Hò Tinder-Style Swipe Deck
+* Giao diện quẹt thẻ đối tượng hẹn hò: Quẹt phải (Thích) hoặc Quẹt trái (Bỏ qua), hỗ trợ phím mũi tên bàn phím.
+* Tự động phát hiện tương hợp (Match) với popup chúc mừng và mở kênh chat hẹn hò riêng biệt.
+* Cài đặt bộ lọc cự ly GPS, khoảng tuổi, giới tính và danh mục sở thích.
 
-### 8. User Profile & Social Graph
-* **Comprehensive Profile Hub**: 3-column media grid tabs (**Posts, Reels, Saved, Friends**).
-* **Detailed Bio & Social Links**: City, country, education, occupation, phone, website, and external socials.
-* **Mutual Friends Preview**: Automatic calculation and preview of mutual connections.
-* **Relationship Management**: Send friend request, cancel, accept, reject, unfriend, and user blocking.
-
-### 9. Real-Time Notifications
-* **STOMP Notification Listener**: Instant notification push over `/user/queue/notifications`.
-* **Interactive Dropdown**: Tabbed filter (All, Unread), relative time stamps, hover dismiss `(X)` deletion, and mark all as read.
-
-### 10. Administration & Moderation
-* **Admin Dashboard (`/admin`)**: User moderation, post deletion, violation report review (Approve/Reject), and platform analytics.
+### 8. Hồ Sơ Cá Nhân & Bảng Quản Trị (Admin)
+* Trang cá nhân tích hợp 4 tab: Bài viết, Reels, Bạn bè, Giới thiệu.
+* Thao tác kết bạn: Gửi lời mời, chấp nhận, từ chối, hủy kết bạn, xem bạn chung, chặn người dùng.
+* Trang Admin (`/admin`): Quản lý người dùng, khóa/kích hoạt tài khoản, kiểm duyệt báo cáo bài viết và hồ sơ hẹn hò.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🛠️ Công Nghệ & Thư Viện Sử Dụng
 
-| Technology | Purpose |
+| Công Nghệ | Vai Trò & Ứng Dụng |
 | :--- | :--- |
-| **React 19.2** | Modern UI component rendering with latest concurrent features |
-| **Vite 8.2** | Next-generation frontend tooling and ultra-fast HMR bundler |
-| **Tailwind CSS 3.4** | Utility-first responsive CSS framework with custom glassmorphism |
-| **Framer Motion 13.0** | Fluid spring physics, layout animations, and modal transitions |
-| **Zustand 5.0** | Lightweight, decoupled global state management (WebSocket client store) |
-| **TanStack React Query 5.101** | Server state caching, pagination, and data synchronization |
-| **STOMP.js 7.3 & SockJS 1.6** | Dual-mode enterprise WebSocket messaging with HTTP fallback |
-| **Axios 1.19** | HTTP client with automated Bearer token injection and error interceptors |
-| **Lucide React 1.31** | Clean, lightweight icon suite |
-| **React Hot Toast 2.6** | Non-intrusive notification toasts |
-| **React Router DOM 7.18** | Client-side routing with role-based protected guards |
+| **React 19** | Thư viện UI nền tảng với concurrent rendering hiệu năng cao |
+| **Vite 8** | Công cụ build cực nhanh với Hot Module Replacement (HMR) |
+| **Tailwind CSS 3** | Framework CSS utility-first, hỗ trợ dark mode & glassmorphism |
+| **Framer Motion 13** | Xử lý hoạt ảnh mượt mà cho modal, drawer, swipe card |
+| **STOMP.js & SockJS** | Giao thức WebSocket 2 chiều nhận thông báo & tin nhắn tức thì |
+| **Axios** | HTTP Client xử lý tự động gắn JWT Bearer token và interceptor |
+| **Lucide React** | Bộ icon vector sắc nét, đồng bộ phong cách |
+| **React Hot Toast** | Hiển thị thông báo trạng thái thao tác đẹp mắt |
+| **React Router DOM 7** | Điều hướng SPA với bảo vệ quyền truy cập theo role |
 
 ---
 
-## 📂 Project Directory Structure
+## 📂 Cấu Trúc Thư Mục Dự Án
 
 ```
 social-fe/
-├── public/                     # Static assets and favicon
 ├── src/
-│   ├── api/
-│   │   └── axiosClient.js      # Central Axios instance with JWT interceptors
+│   ├── api/                    # Cấu hình axiosClient và interceptor token
 │   ├── components/
-│   │   ├── common/             # Reusable UI widgets (Modals, Buttons, Loaders)
-│   │   ├── dating/             # Dating card deck, MatchModal, discovery cards
-│   │   ├── friend/             # Friend suggestions, pending requests
-│   │   ├── layout/             # InstagramSidebar, MobileHeader, Navigation
-│   │   ├── message/            # Chat bubbles, conversation lists, input box
-│   │   ├── notification/       # NotificationDropdown and alert badges
-│   │   ├── post/               # PostCard, ReactionPicker, CommentSection, ReactedUsersModal
-│   │   ├── reel/               # ReelCard, ReelCommentDrawer, ReelVideoPlayer
-│   │   ├── story/              # StoryBar, StoryViewerModal, StoryCreator
-│   │   └── ui/                 # Skeleton loaders, Glass containers
-│   ├── contexts/
-│   │   ├── AuthContext.jsx     # Authentication status, token lifecycle
-│   │   └── UserContext.jsx     # Current user profile and global state
-│   ├── pages/
-│   │   ├── HomePage.jsx        # Main feed and trending sidebar
-│   │   ├── SearchPage.jsx      # Explore media grid and search engine
-│   │   ├── ReelsPage.jsx       # Vertical full-screen short video player
-│   │   ├── MessagesPage.jsx    # Real-time WebSocket messaging center
-│   │   ├── DatingPage.jsx      # Dating discovery swipe interface
-│   │   ├── DatingMatchesPage.jsx # Matched connections list
-│   │   ├── ProfilePage.jsx     # User profile, 3-column media tabs
-│   │   ├── SavedPostsPage.jsx  # Bookmarked posts collection
-│   │   └── AdminPage.jsx       # Platform moderation and report management
-│   ├── services/               # Modular API service layer (Post, Dating, Chat, etc.)
-│   ├── stores/
-│   │   └── useWebSocketStore.js # Zustand STOMP WebSocket connection store
-│   ├── utils/                  # Date formatting, token decoder, media helpers
-│   ├── App.jsx                 # Route definitions and application shell
-│   ├── main.jsx                # Application entry point
-│   └── index.css               # Tailwind CSS imports and global styles
+│   │   ├── common/             # LoginPromptModal, các modal thông báo chung
+│   │   ├── chat/               # ChatInfoSidebar, MessageReactionUsersModal
+│   │   ├── dating/             # SwipeCard, MatchModal, EditDatingProfileModal
+│   │   ├── layout/             # AppHeader, Sidebar, RightSidebar, MobileNav
+│   │   ├── post/               # PostCard, CommentSection, CreatePostModal, ReactionPicker
+│   │   ├── profile/            # EditProfileModal, EditFieldModal
+│   │   ├── reel/               # ReelPlayer, EditReelModal, CreateReelModal, ReelCommentDrawer
+│   │   ├── story/              # StoryViewerModal, CreateStoryModal, StorySection
+│   │   └── ui/                 # Button, Input, Modal, Tabs, Badge, Card
+│   ├── contexts/               # AuthContext, UserContext, RealSocialContext
+│   ├── pages/                  # HomePage, ReelsPage, MessagesPage, DatingPage, ProfilePage, SettingsPage, AdminPage
+│   ├── services/               # 20+ services kết nối 100% Backend API (post, reel, chat, dating, user, admin...)
+│   ├── stores/                 # useWebSocketStore (Zustand STOMP client)
+│   ├── App.jsx                 # Cấu hình định tuyến Route ứng dụng
+│   ├── main.jsx                # Entry point ứng dụng
+│   └── index.css               # Tailwind CSS imports & animations
 ├── package.json
 ├── tailwind.config.js
 └── vite.config.js
@@ -157,97 +139,36 @@ social-fe/
 
 ---
 
-## ⚙️ Environment Variables
+## ⚙️ Cấu Hình Biến Môi Trường
 
-Create a `.env` file in the root of `social-fe/` with the following variables:
+Tạo file `.env` tại thư mục gốc `social-fe/social-fe/`:
 
 ```env
-# Backend API Base URL
-VITE_API_URL=http://localhost:8080/api
+# Địa chỉ Backend API Spring Boot
+VITE_API_BASE_URL=http://localhost:8080/api
 
-# WebSocket & STOMP Endpoint
+# Địa chỉ STOMP WebSocket
 VITE_WS_URL=http://localhost:8080/ws
 ```
 
 ---
 
-## 🚀 Quick Start & Installation
+## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy
 
-### 1. Prerequisites
-* **Node.js**: `v18.0.0` or higher
-* **Package Manager**: `npm` (v9+) or `yarn` / `pnpm`
-
-### 2. Installation
-Clone the repository and install dependencies:
-
+### 1. Cài đặt các gói phụ thuộc
 ```bash
-# Navigate to the frontend project directory
 cd social-fe/social-fe
-
-# Install required npm packages
 npm install
 ```
 
-### 3. Start Development Server
-Run the local Vite development server with Hot Module Replacement (HMR):
-
+### 2. Khởi chạy môi trường phát triển (Development)
 ```bash
 npm run dev
 ```
-The application will be accessible at `http://localhost:5173`.
+Ứng dụng sẽ chạy tại địa chỉ: `http://localhost:5173`.
 
-### 4. Build for Production
-Compile and optimize assets for deployment:
-
+### 3. Đóng gói cho môi trường thực tế (Production Build)
 ```bash
 npm run build
 ```
-Production output files will be generated in the `dist/` folder.
-
-### 5. Preview Production Build
-```bash
-npm run preview
-```
-
----
-
-## 📡 WebSocket & STOMP Protocol
-
-Real-time features are powered by `@stomp/stompjs` and `sockjs-client` managed via `useWebSocketStore.js`:
-
-```mermaid
-graph TD
-    Client[React Frontend] -->|Connect /ws with Bearer Token| Broker[Spring Boot STOMP Broker]
-    Broker -->|/user/queue/messages| Client
-    Broker -->|/user/queue/message-reactions| Client
-    Broker -->|/user/queue/notifications| Client
-    Broker -->|/topic/system| Client
-```
-
-### Subscribed Destinations:
-* `/user/queue/messages`: Incoming private chat messages.
-* `/user/queue/message-reactions`: Real-time reactions on chat messages.
-* `/user/queue/notifications`: Push alerts for Likes, Comments, Friend Requests, and Matches.
-* `/topic/system`: Platform broadcast announcements.
-
----
-
-## 🧩 State Management & Caching
-
-1. **Authentication & User Profile**: Centralized in `AuthContext` and `UserContext` with automatic local storage token synchronization and Axios request interceptors.
-2. **WebSocket & Chat Channels**: Managed in `useWebSocketStore` (Zustand) with auto-reconnect backoff algorithm (`reconnectDelay: 5000ms`).
-3. **Data Fetching & Infinite Scroll**: Powered by `postService` and TanStack Query for caching and pagination.
-
----
-
-## 🛡️ Security & Route Protection
-
-* **Protected Routes (`ProtectedRoute`)**: Restricts access to authenticated users possessing valid JWT tokens; redirects unauthenticated visitors to `/login`.
-* **Admin Guard (`AdminRoute`)**: Enforces `ROLE_ADMIN` authority before rendering `/admin` moderation pages.
-* **Automatic Token Interceptor**: Injects `Authorization: Bearer <token>` on all outgoing HTTP requests and STOMP connect headers.
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**. Feel free to use, modify, and distribute.
+Thư mục xuất bản `dist/` đã sẵn sàng để triển khai lên Vercel, Netlify, Nginx hoặc Docker.
