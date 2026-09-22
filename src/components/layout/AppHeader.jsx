@@ -13,18 +13,36 @@ import {
   LogOut,
   Sparkles,
   Shield,
+  Palette,
+  Volume2,
+  VolumeX,
+  Plus,
 } from 'lucide-react';
 import { useSocial } from '../../contexts/MockSocialContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUser } from '../../contexts/UserContext';
+import { THEME_ACCENTS } from '../../utils/themeAccents';
+import soundFX from '../../utils/soundEffects';
 
-export const AppHeader = ({ onOpenCreatePost }) => {
-  const { currentUser, notifications, conversations, theme, toggleTheme } = useSocial();
+export const AppHeader = ({ onOpenCreatePost, onOpenCommandPalette }) => {
+  const {
+    currentUser,
+    notifications,
+    conversations,
+    theme,
+    toggleTheme,
+    accentTheme,
+    setAccentTheme,
+    soundEnabled,
+    toggleSound,
+  } = useSocial();
   const { isAuthenticated, logout } = useAuth();
   const { isAdmin, user } = useUser();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAccentMenu, setShowAccentMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef(null);
+  const accentMenuRef = useRef(null);
   const navigate = useNavigate();
 
   const unreadNotifs = notifications.filter((n) => !n.isRead).length;
@@ -35,6 +53,9 @@ export const AppHeader = ({ onOpenCreatePost }) => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowUserMenu(false);
+      }
+      if (accentMenuRef.current && !accentMenuRef.current.contains(event.target)) {
+        setShowAccentMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -88,13 +109,101 @@ export const AppHeader = ({ onOpenCreatePost }) => {
         </div>
 
         {/* Right: Actions & Profile */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Theme Toggle */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* 1. Command Palette Shortcut Trigger */}
+          <button
+            type="button"
+            onClick={() => {
+              soundFX.playPop();
+              if (onOpenCommandPalette) onOpenCommandPalette();
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition text-xs font-semibold select-none cursor-pointer"
+            title="Mở Command Hub (Ctrl+K)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span className="hidden md:inline">Hub</span>
+            <kbd className="text-[10px] font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400">
+              ⌘K
+            </kbd>
+          </button>
+
+          {/* 2. Theme Accent Picker Dropdown */}
+          <div className="relative" ref={accentMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                soundFX.playTabClick();
+                setShowAccentMenu(!showAccentMenu);
+              }}
+              className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-xl transition cursor-pointer"
+              title="Đổi tông màu giao diện (Theme Accent)"
+            >
+              <Palette className="w-5 h-5 stroke-[1.8]" />
+            </button>
+
+            {showAccentMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-2.5 z-50 animate-scale-in select-none">
+                <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Màu sắc chủ đề
+                  </span>
+                  <span className="text-[10px] text-slate-400">6 màu</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  {Object.values(THEME_ACCENTS).map((acc) => (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onClick={() => {
+                        setAccentTheme(acc.id);
+                        setShowAccentMenu(false);
+                      }}
+                      className={`flex flex-col items-center gap-1.5 p-2 rounded-xl text-center transition cursor-pointer ${
+                        accentTheme === acc.id
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 ring-1.5 ring-indigo-500'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full shadow-sm ring-2 ring-white dark:ring-slate-950 transition-transform hover:scale-110"
+                        style={{ backgroundColor: acc.colorHex }}
+                      />
+                      <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate w-full">
+                        {acc.name.split(' ')[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Sound FX Haptic Audio Toggle */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            className={`p-2 rounded-xl transition cursor-pointer ${
+              soundEnabled
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900'
+            }`}
+            title={soundEnabled ? 'Âm thanh hiệu ứng: Đang BẬT' : 'Âm thanh hiệu ứng: Đang TẮT'}
+            aria-label="Bật tắt âm thanh hiệu ứng"
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-5 h-5 stroke-[1.8]" />
+            ) : (
+              <VolumeX className="w-5 h-5 stroke-[1.8]" />
+            )}
+          </button>
+
+          {/* 4. Light / Dark Mode Toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-xl transition"
+            className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 rounded-xl transition cursor-pointer"
             aria-label="Chuyển chế độ sáng tối"
+            title={theme === 'dark' ? 'Chuyển sang Chế độ sáng' : 'Chuyển sang Chế độ tối'}
           >
             {theme === 'dark' ? (
               <Sun className="w-5 h-5 stroke-[1.8] text-amber-400" />
@@ -148,6 +257,20 @@ export const AppHeader = ({ onOpenCreatePost }) => {
                   </span>
                 )}
               </Link>
+
+              {/* Quick Create Post Header CTA */}
+              <button
+                type="button"
+                onClick={() => {
+                  soundFX.playPop();
+                  if (onOpenCreatePost) onOpenCreatePost();
+                }}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-500/25 transition active:scale-95 cursor-pointer ml-1"
+                title="Tạo bài viết mới"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Đăng bài</span>
+              </button>
 
               {/* User Profile dropdown menu */}
               <div className="relative ml-1" ref={menuRef}>
