@@ -13,6 +13,8 @@ import commentService from '../services/commentService';
 import blockService from '../services/blockService';
 import useWebSocketStore from '../stores/useWebSocketStore';
 import toast from 'react-hot-toast';
+import { applyThemeAccent, getInitialAccent } from '../utils/themeAccents';
+import soundFX from '../utils/soundEffects';
 
 const RealSocialContext = createContext(null);
 
@@ -20,7 +22,7 @@ export const RealSocialProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const { user } = useUser();
 
-  // Theme
+  // Dark / Light Theme
   const [theme, setTheme] = useState(() => localStorage.getItem('socialdb-theme') || 'light');
   useEffect(() => {
     const root = document.documentElement;
@@ -34,7 +36,32 @@ export const RealSocialProvider = ({ children }) => {
     localStorage.setItem('socialdb-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  const toggleTheme = () => {
+    soundFX.playToggle(theme === 'light');
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Accent Theme (Indigo, Violet, Rose, Emerald, Cyan, Amber)
+  const [accentTheme, setAccentThemeState] = useState(getInitialAccent);
+  useEffect(() => {
+    applyThemeAccent(accentTheme);
+  }, [accentTheme]);
+
+  const setAccentTheme = (accentId) => {
+    soundFX.playPop();
+    setAccentThemeState(accentId);
+    applyThemeAccent(accentId);
+  };
+
+  // Sound FX State
+  const [soundEnabled, setSoundEnabled] = useState(() => soundFX.isEnabled());
+  const toggleSound = () => {
+    const nextState = soundFX.toggle();
+    setSoundEnabled(nextState);
+    toast(nextState ? '🔊 Đã bật âm thanh hiệu ứng' : '🔇 Đã tắt âm thanh hiệu ứng', {
+      duration: 1500,
+    });
+  };
 
   // Live state from Backend APIs
   const [posts, setPosts] = useState([]);
@@ -379,6 +406,10 @@ export const RealSocialProvider = ({ children }) => {
       value={{
         theme,
         toggleTheme,
+        accentTheme,
+        setAccentTheme,
+        soundEnabled,
+        toggleSound,
         currentUser,
         posts,
         setPosts,
