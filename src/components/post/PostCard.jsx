@@ -34,11 +34,17 @@ import reportService from '../../services/reportService';
 import ReactionPicker, { REACTION_ICONS } from './ReactionPicker';
 import ReactedUsersModal from './ReactedUsersModal';
 import LoginPromptModal from '../common/LoginPromptModal';
+import ReactionParticles from '../common/ReactionParticles';
+import HeartBurst from '../common/HeartBurst';
+import HolographicCard from '../common/HolographicCard';
+import soundFX from '../../utils/soundEffects';
 
 export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) => {
   const { currentUserId } = useUser();
   const { isAuthenticated } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const [particleTriggerKey, setParticleTriggerKey] = useState(0);
   const postId = post.id || post.postId;
 
   // Normalized author & media
@@ -125,6 +131,17 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
     }
   }, [showComments, fetchComments, comments.length]);
 
+  // Double-tap on media or post to Like with heart explosion
+  const handleDoubleClickMedia = (e) => {
+    e.preventDefault();
+    soundFX.playHeartBurst();
+    setShowHeartBurst(true);
+    setParticleTriggerKey((k) => k + 1);
+    if (!isLiked) {
+      handleSelectReaction('LOVE');
+    }
+  };
+
   // Reaction handling
   const handleSelectReaction = async (type) => {
     setShowReactionBar(false);
@@ -136,11 +153,14 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
       const res = await reactionService.reactToPost(postId, type);
       const data = res.data?.data;
       if (data?.isReacted) {
+        soundFX.playPop();
+        setParticleTriggerKey((k) => k + 1);
         setIsLiked(true);
         setReactionType(data.reactionType || type);
         setReactionCount((prev) => (isLiked ? prev : prev + 1));
         toast.success(`Đã bày tỏ ${REACTION_ICONS[type]?.label || type}`);
       } else {
+        soundFX.playToggle(false);
         // Toggled off
         setIsLiked(false);
         setReactionType(null);
@@ -171,6 +191,7 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
       return;
     }
     try {
+      soundFX.playPop();
       if (isSaved) {
         await savedPostService.unsavePost(postId);
         setIsSaved(false);
@@ -194,6 +215,7 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
     }
     if (!commentText.trim()) return;
     try {
+      soundFX.playPop();
       await commentService.createComment(postId, commentText.trim(), replyTo?.id || null);
       setCommentText('');
       setReplyTo(null);
@@ -358,8 +380,9 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
   const activeReactionInfo = reactionType ? REACTION_ICONS[reactionType] : null;
 
   return (
-    <article className="relative bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/90 rounded-3xl p-4 sm:p-5 shadow-xs hover:border-slate-300/80 dark:hover:border-slate-700/80 transition-all duration-300 mb-5">
-      {/* 1. Header */}
+    <HolographicCard maxTilt={2.5} className="mb-5">
+      <article className="relative bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/90 rounded-3xl p-4 sm:p-5 shadow-xs hover:border-slate-300/80 dark:hover:border-slate-700/80 transition-all duration-300">
+        {/* 1. Header */}
       <div className="flex items-center justify-between gap-3 mb-3.5">
         <Link to={`/profile/${authorId || ''}`} className="flex items-center gap-3 group min-w-0">
           <img
@@ -466,19 +489,33 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
         </div>
       </div>
 
-      {/* 2. Text Content */}
-      <div className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-3.5 whitespace-pre-line">
+      {/* Center Heart Burst Overlay (Instagram / TikTok style) */}
+      <HeartBurst
+        show={showHeartBurst}
+        onComplete={() => setShowHeartBurst(false)}
+      />
+
+      {/* 2. Text Content (double-click to like) */}
+      <div
+        onDoubleClick={handleDoubleClickMedia}
+        className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-3.5 whitespace-pre-line cursor-pointer select-text"
+        title="Nhấp đúp chuột để thả tim ❤️"
+      >
         {content}
       </div>
 
-      {/* 3. Media Grid */}
+      {/* 3. Media Grid (double-click to like) */}
       {mediaItems.length > 0 && (
-        <div className="mb-4 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+        <div
+          onDoubleClick={handleDoubleClickMedia}
+          className="relative mb-4 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 cursor-pointer select-none group"
+          title="Nhấp đúp chuột để thả tim ❤️"
+        >
           {mediaItems.length === 1 ? (
             <img
               src={mediaItems[0].url || mediaItems[0]}
               alt="Media"
-              className="w-full max-h-[500px] object-cover"
+              className="w-full max-h-[500px] object-cover transition duration-300 group-hover:scale-[1.01]"
             />
           ) : (
             <div className={`grid gap-1 ${mediaItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
@@ -529,8 +566,9 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
           )}
         </AnimatePresence>
 
-        {/* Reaction Trigger Button */}
+        {/* Reaction Trigger Button with Particle Burst */}
         <div
+          className="relative"
           onMouseEnter={() => {
             hoverTimeoutRef.current = setTimeout(() => setShowReactionBar(true), 300);
           }}
@@ -538,12 +576,13 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
           }}
         >
+          <ReactionParticles triggerKey={particleTriggerKey} />
           <button
             type="button"
             onClick={handleQuickLike}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition active:scale-95 ${
               isLiked
-                ? activeReactionInfo?.color || 'text-rose-600 bg-rose-50'
+                ? activeReactionInfo?.color || 'text-rose-600 bg-rose-50 dark:bg-rose-950/30'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -983,7 +1022,8 @@ export const PostCard = ({ post, onPostDeleted, initialShowComments = false }) =
         title="Tương tác với bài viết"
         message={`Đăng nhập để thả cảm xúc, bình luận hoặc lưu bài viết của ${authorName}.`}
       />
-    </article>
+      </article>
+    </HolographicCard>
   );
 };
 
