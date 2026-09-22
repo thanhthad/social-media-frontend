@@ -8,6 +8,8 @@ import CreatePostModal from '../components/post/CreatePostModal';
 import PostCard from '../components/post/PostCard';
 import LoginPromptModal from '../components/common/LoginPromptModal';
 import Tabs from '../components/ui/Tabs';
+import VibeBar from '../components/home/VibeBar';
+import soundFX from '../utils/soundEffects';
 import { Sparkles, Users, Bookmark, RefreshCw, LogIn, UserPlus, Film, Flame, Lock } from 'lucide-react';
 import postService from '../services/postService';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +48,7 @@ export const HomePage = () => {
   ];
 
   const handleTabChange = (newTab) => {
+    soundFX.playTabClick();
     if (!isAuthenticated && (newTab === 'following' || newTab === 'saved')) {
       openLoginPrompt(
         newTab === 'following' ? 'Bảng tin theo dõi' : 'Bài viết đã lưu',
@@ -97,6 +100,7 @@ export const HomePage = () => {
   }, [activeTab, fetchFeed]);
 
   const handleRefresh = () => {
+    soundFX.playPop();
     setPage(0);
     fetchFeed(activeTab, 0, false);
   };
@@ -108,6 +112,7 @@ export const HomePage = () => {
   };
 
   const handlePostCreated = () => {
+    soundFX.playPostPublish();
     handleRefresh();
   };
 
@@ -187,6 +192,9 @@ export const HomePage = () => {
 
       {/* 2. Horizontal Stories Carousel (Shown for all, guest gets prompt on create) */}
       <StorySection onOpenCreateStory={handleOpenCreateStory} />
+
+      {/* 2.5 Live Vibe & Daily Pulse Bar */}
+      <VibeBar />
 
       {/* 3. Create Post Trigger */}
       {isAuthenticated ? (
