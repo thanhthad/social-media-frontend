@@ -20,6 +20,7 @@ import { useSocial } from '../../contexts/MockSocialContext';
 import { useUser } from '../../contexts/UserContext';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginPromptModal from '../common/LoginPromptModal';
+import soundFX from '../../utils/soundEffects';
 
 export const Sidebar = ({ onOpenCreatePost }) => {
   const location = useLocation();
@@ -49,6 +50,7 @@ export const Sidebar = ({ onOpenCreatePost }) => {
   ];
 
   const handleNavClick = (e, item) => {
+    soundFX.playTabClick();
     if (item.authRequired && !isAuthenticated) {
       e.preventDefault();
       setPromptMessage(`Bạn cần đăng nhập để truy cập tính năng ${item.label}.`);
@@ -57,6 +59,7 @@ export const Sidebar = ({ onOpenCreatePost }) => {
   };
 
   const handleCreatePostClick = () => {
+    soundFX.playPop();
     if (!isAuthenticated) {
       setPromptMessage('Bạn cần đăng nhập để tạo bài viết mới.');
       setShowLoginPrompt(true);
