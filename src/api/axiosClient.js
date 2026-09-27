@@ -97,6 +97,7 @@ axiosClient.interceptors.response.use(
         processQueue(new Error('No refresh token available'), null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new Event('auth:expired'));
         
         // Only force-redirect to /login if user is on an authenticated-only route
         const publicPages = ['/', '/reels', '/search', '/login', '/register', '/verify-email', '/forgot-password', '/reset-password'];
@@ -136,6 +137,7 @@ axiosClient.interceptors.response.use(
         console.error('Refresh token failed:', refreshError);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new Event('auth:expired'));
 
         showAuthToast();
         if (window.location.pathname !== '/login') {

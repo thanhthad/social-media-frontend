@@ -47,9 +47,9 @@ const InterestSelector = ({ selectedInterestIds, setSelectedInterestIds }) => {
     }
 
     return (
-        <div className="mt-6 border-t border-gray-100 pt-6">
-            <h3 className="block text-sm font-semibold text-gray-700 mb-2">Sở thích của bạn</h3>
-            <p className="text-xs text-gray-500 mb-4">Chọn các sở thích để hiển thị trên hồ sơ và tìm người có chung sở thích.</p>
+        <div className="mt-6 border-t border-gray-100 dark:border-slate-800 pt-6">
+            <h3 className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">Sở thích của bạn</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">Chọn các sở thích để hiển thị trên hồ sơ và tìm người có chung sở thích.</p>
             
             <div className="flex flex-wrap gap-2">
                 {allInterests.map(interest => {
@@ -61,8 +61,8 @@ const InterestSelector = ({ selectedInterestIds, setSelectedInterestIds }) => {
                             onClick={() => toggleInterest(interest.id)}
                             className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
                                 isSelected 
-                                ? 'bg-pink-100 text-pink-700 border-pink-300 shadow-sm' 
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-pink-300 hover:bg-pink-50'
+                                ? 'bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 border-pink-300 dark:border-pink-800 shadow-sm' 
+                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-pink-300 dark:hover:border-pink-600 hover:bg-pink-50 dark:hover:bg-slate-700'
                             }`}
                         >
                             {interest.icon && <span className="mr-1">{interest.icon}</span>}

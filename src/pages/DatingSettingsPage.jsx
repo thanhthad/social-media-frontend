@@ -350,11 +350,11 @@ export default function DatingSettingsPage() {
   return (
     <div className="max-w-4xl mx-auto py-4 px-3 space-y-6">
       {/* Header Banner */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
             to="/dating"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-600 hover:text-pink-700 mb-2 transition group"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 mb-2 transition group"
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
             <span>Quay lại trang quẹt thẻ</span>
@@ -363,7 +363,7 @@ export default function DatingSettingsPage() {
             <Flame className="w-7 h-7 text-pink-500 fill-pink-500" />
             Cài Đặt Hồ Sơ Hẹn Hò
           </h1>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">
             Chăm chút cho hồ sơ của bạn nổi bật và thu hút nhiều đối tượng tương hợp nhất.
           </p>
         </div>
@@ -378,15 +378,15 @@ export default function DatingSettingsPage() {
       </div>
 
       {/* Settings Navigation Tabs */}
-      <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto dating-scrollbar gap-1.5">
+      <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-x-auto dating-scrollbar gap-1.5">
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === key
                 ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md shadow-pink-500/20'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800'
             }`}
           >
             <Icon size={15} />
@@ -397,11 +397,11 @@ export default function DatingSettingsPage() {
 
       {/* TAB 1: Profile Info */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-6">
-          <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <form onSubmit={handleSaveProfile} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-slate-800 space-y-6">
+          <div className="border-b border-gray-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black text-gray-900">Thông tin cơ bản</h3>
-              <p className="text-xs text-gray-400">Hiển thị cho đối phương khi xem hồ sơ của bạn</p>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white">Thông tin cơ bản</h3>
+              <p className="text-xs text-gray-400 dark:text-slate-400">Hiển thị cho đối phương khi xem hồ sơ của bạn</p>
             </div>
             <button
               type="button"
@@ -417,14 +417,14 @@ export default function DatingSettingsPage() {
             {/* Display Name */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Tên hiển thị *
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'DISPLAY_NAME'}
                   onClick={() => handleSaveSingleField('DISPLAY_NAME', profile.displayName)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'DISPLAY_NAME' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -434,7 +434,7 @@ export default function DatingSettingsPage() {
                 value={profile.displayName}
                 onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
                 placeholder="Ví dụ: Alex, Tuấn Anh..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
                 required
               />
             </div>
@@ -442,14 +442,14 @@ export default function DatingSettingsPage() {
             {/* Gender */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Giới tính *
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'GENDER'}
                   onClick={() => handleSaveSingleField('GENDER', profile.gender)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'GENDER' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -457,7 +457,7 @@ export default function DatingSettingsPage() {
               <select
                 value={profile.gender}
                 onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition cursor-pointer font-medium"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition cursor-pointer font-medium"
               >
                 <option value="MALE">Nam (Male)</option>
                 <option value="FEMALE">Nữ (Female)</option>
@@ -468,14 +468,14 @@ export default function DatingSettingsPage() {
             {/* Birthday */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Ngày sinh (tự tính tuổi & cung hoàng đạo)
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'BIRTHDAY'}
                   onClick={() => handleSaveSingleField('BIRTHDAY', profile.birthday)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'BIRTHDAY' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -484,21 +484,21 @@ export default function DatingSettingsPage() {
                 type="date"
                 value={profile.birthday}
                 onChange={(e) => setProfile({ ...profile, birthday: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition font-medium"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition font-medium"
               />
             </div>
 
             {/* Height */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Chiều cao (cm)
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'HEIGHT'}
                   onClick={() => handleSaveSingleField('HEIGHT', String(profile.height))}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'HEIGHT' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -510,21 +510,21 @@ export default function DatingSettingsPage() {
                 value={profile.height}
                 onChange={(e) => setProfile({ ...profile, height: e.target.value })}
                 placeholder="Ví dụ: 175"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
               />
             </div>
 
             {/* Occupation */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Nghề nghiệp
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'OCCUPATION'}
                   onClick={() => handleSaveSingleField('OCCUPATION', profile.occupation)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'OCCUPATION' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -534,21 +534,21 @@ export default function DatingSettingsPage() {
                 value={profile.occupation}
                 onChange={(e) => setProfile({ ...profile, occupation: e.target.value })}
                 placeholder="Ví dụ: Kỹ sư phần mềm, Thiết kế..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
               />
             </div>
 
             {/* Education */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Trường học / Học vấn
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'EDUCATION'}
                   onClick={() => handleSaveSingleField('EDUCATION', profile.education)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'EDUCATION' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -558,21 +558,21 @@ export default function DatingSettingsPage() {
                 value={profile.education}
                 onChange={(e) => setProfile({ ...profile, education: e.target.value })}
                 placeholder="Ví dụ: Đại học Bách Khoa, FTU..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
               />
             </div>
 
             {/* City */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Tỉnh / Thành phố
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'CITY'}
                   onClick={() => handleSaveSingleField('CITY', profile.city)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'CITY' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -582,21 +582,21 @@ export default function DatingSettingsPage() {
                 value={profile.city}
                 onChange={(e) => setProfile({ ...profile, city: e.target.value })}
                 placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
               />
             </div>
 
             {/* District */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Quận / Huyện
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'DISTRICT'}
                   onClick={() => handleSaveSingleField('DISTRICT', profile.district)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'DISTRICT' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -606,21 +606,21 @@ export default function DatingSettingsPage() {
                 value={profile.district}
                 onChange={(e) => setProfile({ ...profile, district: e.target.value })}
                 placeholder="Ví dụ: Hoàn Kiếm, Cầu Giấy..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition"
               />
             </div>
 
             {/* Bio */}
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Giới thiệu về bản thân (Bio)
                 </label>
                 <button
                   type="button"
                   disabled={savingField === 'BIO'}
                   onClick={() => handleSaveSingleField('BIO', profile.bio)}
-                  className="text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 font-bold hover:underline cursor-pointer"
                 >
                   {savingField === 'BIO' ? 'Đang lưu...' : 'Lưu mục này'}
                 </button>
@@ -630,16 +630,16 @@ export default function DatingSettingsPage() {
                 value={profile.bio}
                 onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                 placeholder="Chia sẻ một chút về tính cách, sở thích, câu nói yêu thích của bạn..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none transition resize-none"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-slate-900 text-gray-900 dark:text-white outline-none transition resize-none"
                 maxLength={500}
               />
             </div>
 
             {/* Visibility Mode */}
-            <div className="sm:col-span-2 p-4 rounded-2xl bg-pink-50/60 border border-pink-100 flex items-center justify-between">
+            <div className="sm:col-span-2 p-4 rounded-2xl bg-pink-50/60 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/40 flex items-center justify-between">
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">Hiển thị trên danh sách tìm kiếm</h4>
-                <p className="text-xs text-gray-500">
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">Hiển thị trên danh sách tìm kiếm</h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   Khi bật, hồ sơ của bạn sẽ xuất hiện để người khác quẹt thẻ.
                 </p>
               </div>
@@ -647,7 +647,7 @@ export default function DatingSettingsPage() {
                 <select
                   value={profile.visibility}
                   onChange={(e) => setProfile({ ...profile, visibility: e.target.value })}
-                  className="px-3 py-2 bg-white border border-pink-200 rounded-xl text-xs font-bold text-pink-700 outline-none cursor-pointer"
+                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-pink-200 dark:border-pink-800 rounded-xl text-xs font-bold text-pink-700 dark:text-pink-300 outline-none cursor-pointer"
                 >
                   <option value="PUBLIC">Đang bật (Công khai)</option>
                   <option value="PRIVATE">Tạm ẩn (Riêng tư)</option>
@@ -656,7 +656,7 @@ export default function DatingSettingsPage() {
                   type="button"
                   disabled={savingField === 'VISIBILITY'}
                   onClick={() => handleSaveSingleField('VISIBILITY', profile.visibility)}
-                  className="px-3 py-1.5 bg-pink-600 text-white rounded-xl text-xs font-bold hover:bg-pink-700 transition"
+                  className="px-3 py-1.5 bg-pink-600 text-white rounded-xl text-xs font-bold hover:bg-pink-700 transition cursor-pointer"
                 >
                   {savingField === 'VISIBILITY' ? '...' : 'Lưu'}
                 </button>
@@ -669,7 +669,7 @@ export default function DatingSettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50"
+              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50 cursor-pointer"
             >
               {saving ? 'Đang lưu...' : 'Lưu Thay Đổi'}
             </button>
@@ -679,10 +679,10 @@ export default function DatingSettingsPage() {
 
       {/* TAB 2: Photo Studio */}
       {activeTab === 'photos' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-slate-800 space-y-6">
           <div>
-            <h3 className="text-lg font-black text-gray-900">Bộ sưu tập ảnh hẹn hò</h3>
-            <p className="text-xs text-gray-400">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white">Bộ sưu tập ảnh hẹn hò</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400">
               Tải lên tối đa 6 ảnh. Ảnh có huy hiệu "Chính" sẽ là ảnh đại diện thẻ quẹt đầu tiên của bạn.
             </p>
           </div>
@@ -691,7 +691,7 @@ export default function DatingSettingsPage() {
             {photos.map((photo, idx) => (
               <div
                 key={photo.id || idx}
-                className="relative rounded-2xl overflow-hidden aspect-[3/4] bg-slate-900 group shadow-sm border border-gray-200"
+                className="relative rounded-2xl overflow-hidden aspect-[3/4] bg-slate-900 group shadow-sm border border-gray-200 dark:border-slate-700"
               >
                 <img src={photo.url} alt="Profile" className="w-full h-full object-cover" />
 
@@ -704,7 +704,7 @@ export default function DatingSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleSetPrimaryPhoto(photo.id)}
-                    className="absolute top-2 left-2 px-2 py-1 bg-black/60 hover:bg-pink-600 text-white rounded-xl text-[10px] font-bold backdrop-blur-md opacity-0 group-hover:opacity-100 transition"
+                    className="absolute top-2 left-2 px-2 py-1 bg-black/60 hover:bg-pink-600 text-white rounded-xl text-[10px] font-bold backdrop-blur-md opacity-0 group-hover:opacity-100 transition cursor-pointer"
                   >
                     Đặt làm chính
                   </button>
@@ -713,7 +713,7 @@ export default function DatingSettingsPage() {
                 <button
                   type="button"
                   onClick={() => handleDeletePhoto(photo.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-rose-600 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition"
+                  className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-rose-600 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition cursor-pointer"
                   title="Xóa ảnh"
                 >
                   <Trash2 size={14} />
@@ -722,19 +722,19 @@ export default function DatingSettingsPage() {
             ))}
 
             {photos.length < 6 && (
-              <label className="rounded-2xl border-2 border-dashed border-pink-200 hover:border-pink-500 bg-pink-50/40 hover:bg-pink-50/70 aspect-[3/4] flex flex-col items-center justify-center gap-2 cursor-pointer transition p-4 text-center">
+              <label className="rounded-2xl border-2 border-dashed border-pink-200 dark:border-pink-900/60 hover:border-pink-500 dark:hover:border-pink-500 bg-pink-50/40 dark:bg-pink-950/20 hover:bg-pink-50/70 dark:hover:bg-pink-950/40 aspect-[3/4] flex flex-col items-center justify-center gap-2 cursor-pointer transition p-4 text-center">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
-                <div className="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center shadow-inner">
+                <div className="w-12 h-12 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-600 dark:text-pink-400 flex items-center justify-center shadow-inner">
                   <Camera size={22} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-800">Thêm ảnh mới</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">JPG, PNG, WEBP (tối đa 10MB)</p>
+                  <p className="text-xs font-bold text-gray-800 dark:text-slate-200">Thêm ảnh mới</p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 mt-0.5">JPG, PNG, WEBP (tối đa 10MB)</p>
                 </div>
               </label>
             )}
@@ -744,15 +744,15 @@ export default function DatingSettingsPage() {
 
       {/* TAB 3: Interests */}
       {activeTab === 'interests' && (
-        <form onSubmit={handleSaveInterests} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-6">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+        <form onSubmit={handleSaveInterests} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-slate-800 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="text-lg font-black text-gray-900">Sở thích & Đam mê</h3>
-              <p className="text-xs text-gray-400">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white">Sở thích & Đam mê</h3>
+              <p className="text-xs text-gray-400 dark:text-slate-400">
                 Chọn tối đa 8 sở thích để hệ thống tìm kiếm những người có gu tương tự bạn ({myInterests.length}/8).
               </p>
             </div>
-            <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-black">
+            <span className="px-3 py-1 bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 rounded-full text-xs font-black">
               {myInterests.length}/8 Đã chọn
             </span>
           </div>
@@ -765,10 +765,10 @@ export default function DatingSettingsPage() {
                   key={interest.id}
                   type="button"
                   onClick={() => toggleInterest(interest.id)}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 border ${
+                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 border cursor-pointer ${
                     isSelected
                       ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white border-pink-500 shadow-md shadow-pink-500/20'
-                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-pink-300 hover:bg-white'
+                      : 'bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-700 hover:border-pink-300 dark:hover:border-pink-700 hover:bg-white dark:hover:bg-slate-750'
                   }`}
                 >
                   <span>{interest.name}</span>
@@ -782,7 +782,7 @@ export default function DatingSettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50"
+              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50 cursor-pointer"
             >
               {saving ? 'Đang lưu...' : 'Lưu Sở Thích'}
             </button>
@@ -792,15 +792,15 @@ export default function DatingSettingsPage() {
 
       {/* TAB 4: Preferences */}
       {activeTab === 'preferences' && (
-        <form onSubmit={handleSavePreferences} className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-7">
-          <div className="border-b border-gray-100 pb-4">
-            <h3 className="text-lg font-black text-gray-900">Tiêu chí đối tượng</h3>
-            <p className="text-xs text-gray-400">Thiết lập bộ lọc tìm kiếm bạn bè và đối tượng hẹn hò</p>
+        <form onSubmit={handleSavePreferences} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-slate-800 space-y-7">
+          <div className="border-b border-gray-100 dark:border-slate-800 pb-4">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white">Tiêu chí đối tượng</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400">Thiết lập bộ lọc tìm kiếm bạn bè và đối tượng hẹn hò</p>
           </div>
 
           {/* Gender Preference */}
           <div className="space-y-3">
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               Tôi muốn tìm kiếm
             </label>
             <div className="grid grid-cols-2 gap-4">
@@ -812,10 +812,10 @@ export default function DatingSettingsPage() {
                   key={key}
                   type="button"
                   onClick={() => setPreferences({ ...preferences, genderPreference: key })}
-                  className={`p-4 rounded-2xl border text-sm font-bold flex items-center justify-between transition-all ${
+                  className={`p-4 rounded-2xl border text-sm font-bold flex items-center justify-between transition-all cursor-pointer ${
                     preferences.genderPreference === key
-                      ? 'border-pink-500 bg-pink-50 text-pink-700 shadow-sm ring-2 ring-pink-500/20'
-                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      ? 'border-pink-500 bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 shadow-sm ring-2 ring-pink-500/20'
+                      : 'border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
@@ -823,7 +823,7 @@ export default function DatingSettingsPage() {
                     <span>{label}</span>
                   </span>
                   {preferences.genderPreference === key && (
-                    <Check size={18} className="text-pink-600" />
+                    <Check size={18} className="text-pink-600 dark:text-pink-400" />
                   )}
                 </button>
               ))}
@@ -833,10 +833,10 @@ export default function DatingSettingsPage() {
           {/* Max Distance */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                 Khoảng cách tối đa
               </label>
-              <span className="text-sm font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
+              <span className="text-sm font-black text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/60 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-900/50">
                 {preferences.maxDistance} km
               </span>
             </div>
@@ -848,7 +848,7 @@ export default function DatingSettingsPage() {
               onChange={(e) => setPreferences({ ...preferences, maxDistance: Number(e.target.value) })}
               className="dating-slider"
             />
-            <div className="flex justify-between text-[11px] text-gray-400">
+            <div className="flex justify-between text-[11px] text-gray-400 dark:text-slate-500">
               <span>1 km</span>
               <span>500 km</span>
             </div>
@@ -857,21 +857,21 @@ export default function DatingSettingsPage() {
           {/* Age Range */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                 Độ tuổi mong muốn
               </label>
-              <span className="text-sm font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
+              <span className="text-sm font-black text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/60 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-900/50">
                 {preferences.minAge} - {preferences.maxAge} tuổi
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-xs text-gray-500 mb-1 block">Tuổi tối thiểu</span>
+                <span className="text-xs text-gray-500 dark:text-slate-400 mb-1 block">Tuổi tối thiểu</span>
                 <input
                   type="range"
-                  min="18"
-                  max="100"
+                  min={18}
+                  max={100}
                   value={preferences.minAge}
                   onChange={(e) => {
                     const val = Number(e.target.value);
@@ -885,11 +885,11 @@ export default function DatingSettingsPage() {
               </div>
 
               <div>
-                <span className="text-xs text-gray-500 mb-1 block">Tuổi tối đa</span>
+                <span className="text-xs text-gray-500 dark:text-slate-400 mb-1 block">Tuổi tối đa</span>
                 <input
                   type="range"
-                  min="18"
-                  max="100"
+                  min={18}
+                  max={100}
                   value={preferences.maxAge}
                   onChange={(e) => {
                     const val = Number(e.target.value);
@@ -908,7 +908,7 @@ export default function DatingSettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50"
+              className="px-8 py-3.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-pink-500/30 hover:shadow-xl transition transform active:scale-95 text-sm disabled:opacity-50 cursor-pointer"
             >
               {saving ? 'Đang lưu...' : 'Lưu Tiêu Chí'}
             </button>
@@ -918,22 +918,22 @@ export default function DatingSettingsPage() {
 
       {/* TAB 5: Location & GPS */}
       {activeTab === 'location' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-slate-800 space-y-6">
           <div>
-            <h3 className="text-lg font-black text-gray-900">Vị trí & Định vị GPS</h3>
-            <p className="text-xs text-gray-400">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white">Vị trí & Định vị GPS</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400">
               Cập nhật tọa độ chính xác để tìm thấy những người ở gần bạn nhất.
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 flex flex-col sm:flex-row items-center justify-between gap-5">
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20 border border-pink-100 dark:border-pink-900/40 flex flex-col sm:flex-row items-center justify-between gap-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white text-pink-600 flex items-center justify-center shadow-md">
+              <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 flex items-center justify-center shadow-md">
                 <Compass size={28} className={gpsLoading ? 'animate-spin' : ''} />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">Tự động lấy vị trí hiện tại</h4>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">Tự động lấy vị trí hiện tại</h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   Sử dụng cảm biến định vị GPS trên thiết bị của bạn
                 </p>
               </div>
@@ -943,7 +943,7 @@ export default function DatingSettingsPage() {
               type="button"
               onClick={() => handleDetectGPS()}
               disabled={gpsLoading}
-              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition transform active:scale-95 text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition transform active:scale-95 text-xs flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {gpsLoading && (
                 <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -954,7 +954,7 @@ export default function DatingSettingsPage() {
 
           {/* Preset Locations */}
           <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <p className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               Hoặc chọn nhanh vị trí thành phố:
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -968,7 +968,7 @@ export default function DatingSettingsPage() {
                   key={loc.name}
                   type="button"
                   onClick={() => handleDetectGPS(loc.lat, loc.lng, loc.name)}
-                  className="p-3 bg-gray-50 hover:bg-pink-50 border border-gray-200 hover:border-pink-200 rounded-2xl text-xs font-bold text-gray-700 hover:text-pink-700 transition text-center flex items-center justify-center gap-1.5"
+                  className="p-3 bg-gray-50 dark:bg-slate-800 hover:bg-pink-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 hover:border-pink-200 dark:hover:border-pink-800 rounded-2xl text-xs font-bold text-gray-700 dark:text-slate-200 hover:text-pink-700 dark:hover:text-pink-300 transition text-center flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <MapPin size={13} className="text-pink-500" />
                   {loc.name}
@@ -978,7 +978,7 @@ export default function DatingSettingsPage() {
           </div>
 
           {gpsStatus && (
-            <p className="text-xs font-semibold text-pink-700 bg-pink-50 p-3.5 rounded-2xl border border-pink-100">
+            <p className="text-xs font-semibold text-pink-700 dark:text-pink-300 bg-pink-50 dark:bg-pink-950/40 p-3.5 rounded-2xl border border-pink-100 dark:border-pink-900/50">
               {gpsStatus}
             </p>
           )}

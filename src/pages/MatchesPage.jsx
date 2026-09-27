@@ -269,11 +269,11 @@ export default function MatchesPage() {
   return (
     <div className="max-w-4xl mx-auto py-4 px-3 space-y-5">
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
             to="/dating"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-600 hover:text-pink-700 mb-2 transition group"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 mb-2 transition group"
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
             <span>Quay lại trang quẹt thẻ</span>
@@ -282,7 +282,7 @@ export default function MatchesPage() {
             <Sparkles className="w-7 h-7 text-pink-500 fill-pink-500" />
             Tương Hợp & Lượt Thích
           </h1>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">
             Xem những người đã có ấn tượng với bạn và bắt đầu trò chuyện.
           </p>
         </div>
@@ -296,14 +296,14 @@ export default function MatchesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo tên, địa điểm..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs focus:ring-2 focus:ring-pink-400 focus:bg-white outline-none transition"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-pink-400 focus:bg-white dark:focus:bg-slate-900 outline-none transition"
             />
           </div>
 
           <button
             type="button"
             onClick={fetchData}
-            className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-2xl border border-gray-200 transition"
+            className="p-2.5 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 rounded-2xl border border-gray-200 dark:border-slate-700 transition"
             title="Tải lại danh sách"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -312,7 +312,7 @@ export default function MatchesPage() {
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 gap-1.5">
+      <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 gap-1.5">
         {TABS.map(({ key, label, icon: Icon, count, color }) => (
           <button
             key={key}
@@ -320,14 +320,16 @@ export default function MatchesPage() {
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
               activeTab === key
                 ? `bg-gradient-to-r ${color} text-white shadow-md shadow-pink-500/20`
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800'
             }`}
           >
             <Icon size={15} />
             <span>{label}</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                activeTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                activeTab === key
+                  ? 'bg-white/20 text-white'
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'
               }`}
             >
               {count}
@@ -439,12 +441,12 @@ export default function MatchesPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="bg-white rounded-3xl p-16 text-center shadow-sm border border-gray-100 space-y-4">
-                    <div className="w-20 h-20 bg-pink-50 text-pink-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-16 text-center shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+                    <div className="w-20 h-20 bg-pink-50 dark:bg-pink-950/40 text-pink-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
                       <Heart size={36} />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">Chưa có ai thích bạn gần đây</h3>
-                    <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Chưa có ai thích bạn gần đây</h3>
+                    <p className="text-xs text-gray-400 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
                       Hãy làm đẹp thêm hồ sơ, tải ảnh chất lượng và tiếp tục quẹt thẻ để tăng cơ hội kết đôi!
                     </p>
                     <Link
@@ -522,12 +524,12 @@ export default function MatchesPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="bg-white rounded-3xl p-16 text-center shadow-sm border border-gray-100 space-y-4">
-                    <div className="w-20 h-20 bg-gradient-to-tr from-pink-50 to-purple-50 text-pink-500 rounded-3xl flex items-center justify-center mx-auto">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-16 text-center shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+                    <div className="w-20 h-20 bg-gradient-to-tr from-pink-50 to-purple-50 dark:from-pink-950/40 dark:to-purple-950/40 text-pink-500 rounded-3xl flex items-center justify-center mx-auto">
                       <Users size={36} />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">Chưa có tương hợp nào</h3>
-                    <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Chưa có tương hợp nào</h3>
+                    <p className="text-xs text-gray-400 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
                       Khi bạn và ai đó cùng thích nhau, họ sẽ xuất hiện tại đây. Hãy tiếp tục quẹt thẻ để tìm bạn nhé!
                     </p>
                     <Link
@@ -544,36 +546,36 @@ export default function MatchesPage() {
 
             {/* ─── TAB 3: Lịch sử đã quẹt ─── */}
             {activeTab === 'sent' && (
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
                 {filteredSwipes.length > 0 ? (
                   <>
                     {/* Summary stats */}
-                    <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                    <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-slate-800 border-b border-gray-100 dark:border-slate-800">
                       <div className="p-4 text-center">
-                        <p className="text-xl font-black text-gray-900">{filteredSwipes.length}</p>
-                        <p className="text-[11px] text-gray-400 font-semibold mt-0.5">Tổng quẹt</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-slate-100">{filteredSwipes.length}</p>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-400 font-semibold mt-0.5">Tổng quẹt</p>
                       </div>
                       <div className="p-4 text-center">
                         <p className="text-xl font-black text-pink-600">{likeSwipes.length}</p>
-                        <p className="text-[11px] text-gray-400 font-semibold mt-0.5">Đã thích</p>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-400 font-semibold mt-0.5">Đã thích</p>
                       </div>
                       <div className="p-4 text-center">
                         <p className="text-xl font-black text-rose-600">{dislikeSwipes.length}</p>
-                        <p className="text-[11px] text-gray-400 font-semibold mt-0.5">Đã bỏ qua</p>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-400 font-semibold mt-0.5">Đã bỏ qua</p>
                       </div>
                     </div>
 
                     <div className="overflow-x-auto p-4">
                       <table className="w-full text-left text-xs">
                         <thead>
-                          <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                          <tr className="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
                             <th className="pb-3 px-2">Đối tượng</th>
                             <th className="pb-3 px-2">Hành động</th>
                             <th className="pb-3 px-2">Thời gian</th>
                             <th className="pb-3 px-2 text-right">Hoàn tác</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
                           {filteredSwipes.map((swipe) => {
                             const sId = swipe.targetUserId || swipe.targetId || swipe.userId;
                             const targetName =
@@ -581,24 +583,24 @@ export default function MatchesPage() {
                             const targetAvatar = swipe.avatarUrl || swipe.targetAvatarUrl || null;
 
                             return (
-                              <tr key={sId} className="hover:bg-gray-50/50 transition group">
+                              <tr key={sId} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40 transition group">
                                 <td className="py-3.5 px-2">
                                   <div className="flex items-center gap-3">
                                     {targetAvatar ? (
                                       <img
                                         src={targetAvatar}
                                         alt=""
-                                        className="w-10 h-10 rounded-2xl object-cover border border-gray-100"
+                                        className="w-10 h-10 rounded-2xl object-cover border border-gray-100 dark:border-slate-700"
                                       />
                                     ) : (
-                                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-100 to-rose-200 text-pink-700 font-black flex items-center justify-center shadow-sm text-xs">
+                                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-100 to-rose-200 dark:from-pink-950 dark:to-rose-900 text-pink-700 dark:text-pink-300 font-black flex items-center justify-center shadow-sm text-xs">
                                         #{sId}
                                       </div>
                                     )}
                                     <div>
-                                      <p className="font-bold text-gray-900">{targetName}</p>
+                                      <p className="font-bold text-gray-900 dark:text-slate-100">{targetName}</p>
                                       {swipe.city && (
-                                        <p className="text-[10px] text-gray-400">{swipe.city}</p>
+                                        <p className="text-[10px] text-gray-400 dark:text-slate-400">{swipe.city}</p>
                                       )}
                                     </div>
                                   </div>
@@ -608,10 +610,10 @@ export default function MatchesPage() {
                                   <span
                                     className={`px-3 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 ${
                                       swipe.action === 'LIKE'
-                                        ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                        ? 'bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800'
                                         : swipe.action === 'SUPER_LIKE'
-                                        ? 'bg-sky-100 text-sky-700 border border-sky-200'
-                                        : 'bg-gray-100 text-gray-700 border border-gray-200'
+                                        ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                                        : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700'
                                     }`}
                                   >
                                     {swipe.action === 'LIKE' && <Heart size={12} className="fill-current" />}
@@ -624,7 +626,7 @@ export default function MatchesPage() {
                                   </span>
                                 </td>
 
-                                <td className="py-3.5 px-2 text-gray-400">
+                                <td className="py-3.5 px-2 text-gray-400 dark:text-slate-400">
                                   {swipe.createdAt
                                     ? new Date(swipe.createdAt).toLocaleDateString('vi-VN')
                                     : 'Gần đây'}
@@ -633,7 +635,7 @@ export default function MatchesPage() {
                                 <td className="py-3.5 px-2 text-right">
                                   <button
                                     onClick={() => handleUndoSwipe(sId)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition inline-flex items-center gap-1 active:scale-95"
+                                    className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition inline-flex items-center gap-1 active:scale-95"
                                   >
                                     <RotateCcw size={13} />
                                     Thu hồi
@@ -647,8 +649,8 @@ export default function MatchesPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="py-16 text-center space-y-2 text-gray-400 p-6">
-                    <p className="font-semibold text-gray-700 text-sm">Chưa có lịch sử quẹt nào.</p>
+                  <div className="py-16 text-center space-y-2 text-gray-400 dark:text-slate-400 p-6">
+                    <p className="font-semibold text-gray-700 dark:text-slate-200 text-sm">Chưa có lịch sử quẹt nào.</p>
                     <p className="text-xs">Khi bạn thích hoặc bỏ qua hồ sơ, lịch sử sẽ xuất hiện tại đây.</p>
                   </div>
                 )}

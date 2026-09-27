@@ -54,12 +54,24 @@
   box-shadow: 0 20px 40px -15px rgba(244, 63, 94, 0.08), 0 0 1px 1px rgba(255, 255, 255, 0.9);
 }
 
+.dark .glass-dating-panel {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
 .glass-dating-card {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.dark .glass-dating-card {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .glass-dark-overlay {
@@ -87,6 +99,10 @@ input[type="range"].dating-slider {
   border-radius: 999px;
   outline: none;
   transition: all 0.2s;
+}
+
+.dark input[type="range"].dating-slider {
+  background: #334155;
 }
 
 input[type="range"].dating-slider::-webkit-slider-thumb {

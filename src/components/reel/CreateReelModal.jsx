@@ -155,23 +155,23 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="relative z-10 w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]"
+          className="relative z-10 w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-slate-800 flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 text-white flex items-center justify-center shadow-md">
                 <Video size={20} />
               </div>
               <div>
-                <h3 className="font-black text-gray-900 text-lg tracking-tight">Tạo Reel mới</h3>
-                <p className="text-xs text-gray-400">Chia sẻ khoảnh khắc video ngắn với mọi người</p>
+                <h3 className="font-black text-gray-900 dark:text-white text-lg tracking-tight">Tạo Reel mới</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-400">Chia sẻ khoảnh khắc video ngắn với mọi người</p>
               </div>
             </div>
             <button
               onClick={handleClose}
               disabled={isUploading}
-              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition disabled:opacity-50"
+              className="p-2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition disabled:opacity-50"
             >
               <X size={20} />
             </button>
@@ -182,22 +182,22 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column: Video Picker & Preview */}
               <div className="space-y-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                   Video Reel <span className="text-rose-500">*</span>
                 </label>
 
                 {!videoPreviewUrl ? (
                   <div
                     onClick={() => videoInputRef.current?.click()}
-                    className="h-80 border-2 border-dashed border-gray-200 hover:border-pink-500 rounded-3xl flex flex-col items-center justify-center p-6 text-center cursor-pointer group bg-gray-50/50 hover:bg-pink-50/30 transition-all duration-300"
+                    className="h-80 border-2 border-dashed border-gray-200 dark:border-slate-700 hover:border-pink-500 dark:hover:border-pink-500 rounded-3xl flex flex-col items-center justify-center p-6 text-center cursor-pointer group bg-gray-50/50 dark:bg-slate-800/40 hover:bg-pink-50/30 dark:hover:bg-pink-950/20 transition-all duration-300"
                   >
-                    <div className="w-16 h-16 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition shadow-inner">
+                    <div className="w-16 h-16 rounded-full bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 flex items-center justify-center mb-3 group-hover:scale-110 transition shadow-inner">
                       <Upload size={28} />
                     </div>
-                    <p className="font-bold text-sm text-gray-800 group-hover:text-pink-600 transition">
+                    <p className="font-bold text-sm text-gray-800 dark:text-slate-200 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition">
                       Nhấn để tải video lên
                     </p>
-                    <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
+                    <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 max-w-[200px]">
                       Định dạng MP4, MOV, WebM (Tối đa 90s, dung lượng ≤ 100MB)
                     </p>
                   </div>
@@ -240,7 +240,7 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                 {videoPreviewUrl && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-gray-600 dark:text-slate-300 flex items-center gap-1.5">
                         <ImageIcon size={14} className="text-indigo-500" />
                         Ảnh bìa tùy chỉnh (Tùy chọn)
                       </label>
@@ -262,7 +262,7 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                       <button
                         type="button"
                         onClick={() => thumbInputRef.current?.click()}
-                        className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 hover:border-indigo-400 rounded-2xl text-xs font-semibold text-gray-600 hover:text-indigo-600 flex items-center justify-center gap-2 transition"
+                        className="w-full py-2.5 px-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 rounded-2xl text-xs font-semibold text-gray-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center gap-2 transition"
                       >
                         <ImageIcon size={16} />
                         <span>Chọn ảnh bìa từ máy</span>
@@ -290,21 +290,21 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                   {/* Caption Textarea */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold text-gray-600">Mô tả Reel</label>
-                      <span className="text-[11px] text-gray-400">{content.length}/500</span>
+                      <label className="text-xs font-bold text-gray-600 dark:text-slate-300">Mô tả Reel</label>
+                      <span className="text-[11px] text-gray-400 dark:text-slate-500">{content.length}/500</span>
                     </div>
                     <textarea
                       value={content}
                       onChange={(e) => setContent(e.target.value.slice(0, 500))}
                       placeholder="Viết chú thích cho video Reel của bạn... Thêm hashtag để tăng độ lan tỏa! ✨"
                       rows={5}
-                      className="w-full p-4 bg-gray-50 border border-gray-200 focus:border-pink-500 focus:bg-white rounded-2xl text-sm text-gray-800 outline-none transition resize-none"
+                      className="w-full p-4 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 focus:border-pink-500 focus:bg-white dark:focus:bg-slate-900 rounded-2xl text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none transition resize-none"
                     />
                   </div>
 
                   {/* Quick Hashtags */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Sparkles size={14} className="text-amber-500" />
                       Gợi ý Hashtag thịnh hành
                     </label>
@@ -314,7 +314,7 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                           key={tag}
                           type="button"
                           onClick={() => handleAddHashtag(tag)}
-                          className="px-2.5 py-1 bg-gray-100 hover:bg-pink-100 text-gray-700 hover:text-pink-600 rounded-full text-xs font-medium transition"
+                          className="px-2.5 py-1 bg-gray-100 dark:bg-slate-800 hover:bg-pink-100 dark:hover:bg-pink-950/50 text-gray-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 rounded-full text-xs font-medium transition"
                         >
                           {tag}
                         </button>
@@ -324,15 +324,15 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
 
                   {/* Visibility Setting */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-600">Quyền riêng tư</label>
+                    <label className="text-xs font-bold text-gray-600 dark:text-slate-300">Quyền riêng tư</label>
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setVisibility('PUBLIC')}
                         className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                           visibility === 'PUBLIC'
-                            ? 'border-pink-500 bg-pink-50 text-pink-600 shadow-sm'
-                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'border-pink-500 bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 shadow-sm'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                         }`}
                       >
                         <Globe size={16} />
@@ -344,8 +344,8 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                         onClick={() => setVisibility('FRIEND')}
                         className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                           visibility === 'FRIEND'
-                            ? 'border-pink-500 bg-pink-50 text-pink-600 shadow-sm'
-                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'border-pink-500 bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 shadow-sm'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                         }`}
                       >
                         <Users size={16} />
@@ -357,8 +357,8 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
                         onClick={() => setVisibility('PRIVATE')}
                         className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                           visibility === 'PRIVATE'
-                            ? 'border-pink-500 bg-pink-50 text-pink-600 shadow-sm'
-                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'border-pink-500 bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 shadow-sm'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                         }`}
                       >
                         <Lock size={16} />
@@ -370,12 +370,12 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
 
                 {/* Upload Progress Bar */}
                 {isUploading && (
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
-                    <div className="flex justify-between text-xs font-bold text-gray-700">
+                  <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-2">
+                    <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-slate-300">
                       <span>Đang xử lý & tải video lên...</span>
                       <span>{uploadProgress}%</span>
                     </div>
-                    <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-pink-500 to-rose-600 transition-all duration-300 rounded-full"
                         style={{ width: `${uploadProgress}%` }}
@@ -387,12 +387,12 @@ export default function CreateReelModal({ isOpen, onClose, onReelCreated }) {
             </div>
 
             {/* Actions Footer */}
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+            <div className="pt-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={isUploading}
-                className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-2xl text-sm font-bold transition disabled:opacity-50"
+                className="px-5 py-2.5 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-2xl text-sm font-bold transition disabled:opacity-50"
               >
                 Hủy
               </button>

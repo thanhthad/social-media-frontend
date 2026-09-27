@@ -63,8 +63,8 @@ export default function CreatePostForm({ onPostCreated }) {
 
   return (
     <div
-      className={`glass-card rounded-3xl p-5 mb-5 transition-all duration-300 ${
-        isFocused ? 'ring-2 ring-blue-500/20 shadow-lg border-blue-200' : 'shadow-sm'
+      className={`bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 mb-5 transition-all duration-300 ${
+        isFocused ? 'ring-2 ring-indigo-500/20 shadow-lg border-indigo-200 dark:border-indigo-800' : 'shadow-xs'
       }`}
     >
       <form onSubmit={handleSubmit}>
@@ -75,20 +75,20 @@ export default function CreatePostForm({ onPostCreated }) {
               <img
                 src={user.avatarUrl}
                 alt={user?.username || 'User'}
-                className="w-11 h-11 rounded-2xl object-cover border-2 border-white shadow-sm ring-1 ring-gray-100"
+                className="w-11 h-11 rounded-2xl object-cover border-2 border-white dark:border-slate-800 shadow-sm ring-1 ring-gray-100 dark:ring-slate-700"
               />
             ) : (
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-base shadow-sm">
                 {user?.username?.charAt(0).toUpperCase() || 'U'}
               </div>
             )}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
           </div>
 
           {/* Input Area */}
           <div className="flex-1 min-w-0">
             <textarea
-              className="w-full resize-none outline-none text-gray-800 placeholder-gray-400 text-sm sm:text-base bg-transparent font-normal leading-relaxed pt-1"
+              className="w-full resize-none outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base bg-transparent font-normal leading-relaxed pt-1"
               rows={isFocused || content.length > 50 ? 3 : 2}
               placeholder={`Chào ${user?.username || 'bạn'}, bạn đang có ý tưởng gì hôm nay?`}
               value={content}
@@ -143,15 +143,15 @@ export default function CreatePostForm({ onPostCreated }) {
         </AnimatePresence>
 
         {/* Action Bottom Bar */}
-        <div className="mt-3 pt-3 border-t border-gray-100/90 flex items-center justify-between flex-wrap gap-2">
+        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             {/* Media Upload Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all font-semibold text-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all font-semibold text-xs"
             >
-              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <Image size={14} />
               </div>
               <span className="hidden sm:inline">Ảnh / Video</span>
@@ -170,7 +170,7 @@ export default function CreatePostForm({ onPostCreated }) {
               <select
                 value={visibility}
                 onChange={(e) => setVisibility(e.target.value)}
-                className="text-xs border border-gray-200/80 rounded-xl text-gray-700 bg-gray-50/80 hover:bg-gray-100 transition-colors py-1.5 px-3 pr-7 outline-none cursor-pointer font-semibold appearance-none"
+                className="text-xs border border-slate-200/80 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors py-1.5 px-3 pr-7 outline-none cursor-pointer font-semibold appearance-none"
               >
                 <option value="PUBLIC">🌍 Công khai</option>
                 <option value="FRIEND">👥 Bạn bè</option>

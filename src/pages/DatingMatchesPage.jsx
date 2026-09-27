@@ -72,23 +72,23 @@ export default function DatingMatchesPage() {
   return (
     <div className="max-w-2xl mx-auto pb-16 px-3 sm:px-4 space-y-4">
       {/* ── Top Header ── */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-gray-100 flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-xs border border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             to="/dating"
-            className="p-2 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-700 transition active:scale-95"
+            className="p-2 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-2xl text-gray-700 dark:text-slate-300 transition active:scale-95"
             title="Quay lại Hẹn hò"
           >
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">Tương Hợp Của Bạn</h1>
+              <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Tương Hợp Của Bạn</h1>
               <span className="px-2 py-0.5 bg-gradient-to-r from-pink-500 to-rose-600 text-white text-[11px] font-bold rounded-full shadow-xs">
                 {matches.length}
               </span>
             </div>
-            <p className="text-xs text-gray-400 font-semibold">
+            <p className="text-xs text-gray-400 dark:text-slate-400 font-semibold">
               Những người đã cùng thích hồ sơ hẹn hò của bạn
             </p>
           </div>
@@ -96,7 +96,7 @@ export default function DatingMatchesPage() {
 
         <Link
           to="/dating"
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-2xl text-xs font-bold transition active:scale-95"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-pink-50 dark:bg-pink-950/40 hover:bg-pink-100 dark:hover:bg-pink-900/60 text-pink-700 dark:text-pink-300 rounded-2xl text-xs font-bold transition active:scale-95"
         >
           <Flame size={15} className="fill-current text-pink-500" />
           <span>Quẹt thẻ</span>
@@ -107,16 +107,16 @@ export default function DatingMatchesPage() {
       {loading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 border-3 border-pink-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-bold text-gray-400">Đang tải danh sách kết đôi...</p>
+          <p className="text-xs font-bold text-gray-400 dark:text-slate-400">Đang tải danh sách kết đôi...</p>
         </div>
       ) : matches.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center shadow-xs border border-gray-100 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center mx-auto ring-8 ring-pink-50/50">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center shadow-xs border border-gray-100 dark:border-slate-800 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-pink-50 dark:bg-pink-950/40 text-pink-500 flex items-center justify-center mx-auto ring-8 ring-pink-50/50 dark:ring-pink-950/30">
             <Heart size={32} className="fill-current animate-pulse" />
           </div>
           <div>
-            <h3 className="text-base font-black text-gray-900">Chưa có lượt tương hợp nào</h3>
-            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            <h3 className="text-base font-black text-gray-900 dark:text-white">Chưa có lượt tương hợp nào</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 max-w-sm mx-auto">
               Hãy tiếp tục khám phá và thả tim cho những hồ sơ bạn ấn tượng để nhận được lượt ghép đôi nhé!
             </p>
           </div>
@@ -138,7 +138,7 @@ export default function DatingMatchesPage() {
             return (
               <div
                 key={mId || targetId}
-                className="bg-white rounded-3xl p-4 shadow-xs border border-gray-100 hover:border-pink-200 hover:shadow-md transition flex flex-col justify-between space-y-3 group"
+                className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-xs border border-gray-100 dark:border-slate-800 hover:border-pink-200 dark:hover:border-pink-900/60 hover:shadow-md transition flex flex-col justify-between space-y-3 group"
               >
                 <div className="flex items-start gap-3.5">
                   {/* Avatar with Gradient Ring */}
@@ -148,19 +148,19 @@ export default function DatingMatchesPage() {
                       alt=""
                       className="w-14 h-14 rounded-2xl object-cover ring-2 ring-pink-500 shadow-xs"
                     />
-                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-tr from-pink-500 to-rose-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-xs">
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-tr from-pink-500 to-rose-600 text-white rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-xs">
                       <Heart size={10} className="fill-current" />
                     </span>
                   </div>
 
                   {/* Partner Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-sm text-gray-900 truncate group-hover:text-pink-600 transition">
+                    <h3 className="font-black text-sm text-gray-900 dark:text-white truncate group-hover:text-pink-600 dark:group-hover:text-pink-400 transition">
                       {item.name || item.username}
                     </h3>
-                    <p className="text-xs text-gray-400 truncate">@{item.username}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-400 truncate">@{item.username}</p>
                     {item.bio && (
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-gray-600 dark:text-slate-300 mt-1 line-clamp-2 leading-relaxed">
                         {item.bio}
                       </p>
                     )}
@@ -168,7 +168,7 @@ export default function DatingMatchesPage() {
                 </div>
 
                 {/* Actions Row */}
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => handleStartChat(targetId)}
@@ -182,7 +182,7 @@ export default function DatingMatchesPage() {
                   <button
                     type="button"
                     onClick={() => handleUnmatch(mId, item.name || item.username)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition cursor-pointer"
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition cursor-pointer"
                     title="Huỷ tương hợp"
                   >
                     <UserX size={16} />

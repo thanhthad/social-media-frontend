@@ -1,25 +1,53 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Database, Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Database, Eye, EyeOff, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import Button from './ui/Button';
 import Input from './ui/Input';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('alex.vance@socialdb.dev');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [notVerifiedError, setNotVerifiedError] = useState(false);
 
-  const handleLogin = (e) => {
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setNotVerifiedError(false);
+
+    if (!email.trim()) {
+      toast.error('Vui lòng nhập địa chỉ email');
+      return;
+    }
+    if (!password) {
+      toast.error('Vui lòng nhập mật khẩu');
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Đăng nhập thành công!');
-      navigate('/');
-    }, 400);
+    const result = await login(email, password);
+    setIsLoading(false);
+
+    if (result.success) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } else if (result.notVerified) {
+      setNotVerifiedError(true);
+    }
   };
 
   return (
@@ -27,16 +55,36 @@ export default function Login() {
       <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-card">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 text-white shadow-sm mb-3">
+          <Link to="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 text-white shadow-sm mb-3 hover:scale-105 transition-transform">
             <Database className="w-6 h-6 stroke-[2.2]" />
-          </div>
+          </Link>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Chào mừng đến với Social<span className="text-indigo-600">DB</span>
+            Chào mừng đến với Social<span className="text-indigo-600 dark:text-indigo-400">DB</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Mạng xã hội tối giản, hiện đại và cấu trúc tinh tế
+            Đăng nhập để kết nối, chia sẻ và khám phá thế giới của bạn
           </p>
         </div>
+
+        {/* Warning if email not verified */}
+        {notVerifiedError && (
+          <div className="mb-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1">
+              <p className="font-semibold mb-1">Tài khoản chưa được xác thực email!</p>
+              <p className="mb-2 text-amber-700 dark:text-amber-400/90 leading-relaxed">
+                Vui lòng kiểm tra hòm thư để kích hoạt tài khoản hoặc gửi lại mã xác minh.
+              </p>
+              <Link
+                to={`/verify-email?email=${encodeURIComponent(email)}`}
+                className="inline-flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                <span>Xác thực ngay</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
@@ -46,7 +94,9 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             leftIcon={Mail}
+            placeholder="example@domain.com"
             required
+            autoComplete="email"
           />
 
           <div>
@@ -69,13 +119,16 @@ export default function Login() {
                 type={showPwd ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-10 py-2 text-slate-900 dark:text-white outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/15"
+                placeholder="Nhập mật khẩu của bạn"
+                className="w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-10 py-2.5 text-slate-900 dark:text-white outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/15 transition"
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                aria-label={showPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -85,7 +138,7 @@ export default function Login() {
           <Button
             type="submit"
             variant="primary"
-            className="w-full py-2.5 mt-2"
+            className="w-full py-2.5 mt-2 font-semibold"
             isLoading={isLoading}
             rightIcon={ArrowRight}
           >

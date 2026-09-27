@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
-import { UserProvider } from './contexts/UserContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UserProvider, useUser } from './contexts/UserContext';
 import { RealSocialProvider } from './contexts/RealSocialContext';
 import AppLayout from './components/layout/AppLayout';
 
@@ -47,81 +47,98 @@ const PageTransition = ({ children }) => {
   );
 };
 
+// Route Guard for Authenticated Users
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const { isAdmin, isLoading: isUserLoading } = useUser();
+  const location = useLocation();
+
+  if (isLoading || isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+// Route Guard for Guest-Only Pages (Login / Register / etc.)
+const PublicOnlyRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    const from = location.state?.from?.pathname || '/';
+    return <Navigate to={from} replace />;
+  }
+
+  return children;
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Authentication Flow (Independent full-screen layouts) */}
-        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
-        <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
-        <Route path="/verify-email" element={<PageTransition><VerifyEmail /></PageTransition>} />
-        <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
-        <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
+        {/* Authentication Flow (Guest-only access) */}
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <PageTransition><Login /></PageTransition>
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <PageTransition><Register /></PageTransition>
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/verify-email"
+          element={<PageTransition><VerifyEmail /></PageTransition>}
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <PageTransition><ForgotPassword /></PageTransition>
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicOnlyRoute>
+              <PageTransition><ResetPassword /></PageTransition>
+            </PublicOnlyRoute>
+          }
+        />
 
-        {/* Core Social Application (Wrapped in AppLayout Shell) */}
+        {/* Public Social Application Routes (Wrapped in AppLayout) */}
         <Route
           path="/"
           element={
             <AppLayout>
               <PageTransition><HomePage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <AppLayout>
-              <PageTransition><ProfilePage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/profile/edit"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><EditProfilePage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/profile/:userId"
-          element={
-            <AppLayout>
-              <PageTransition><ProfilePage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/posts/:postId"
-          element={
-            <AppLayout>
-              <PageTransition><PostDetailPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/friends"
-          element={
-            <AppLayout>
-              <PageTransition><FriendsPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/messages"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><MessagesPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <AppLayout>
-              <PageTransition><NotificationsPage /></PageTransition>
             </AppLayout>
           }
         />
@@ -134,54 +151,6 @@ const AnimatedRoutes = () => {
           }
         />
         <Route
-          path="/dating"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><DatingPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/dating/setup"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><DatingSetupPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/dating/matches"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><MatchesPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/dating/settings"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><DatingSettingsPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><SettingsPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/saved"
-          element={
-            <AppLayout>
-              <PageTransition><SavedPostsPage /></PageTransition>
-            </AppLayout>
-          }
-        />
-        <Route
           path="/search"
           element={
             <AppLayout>
@@ -190,11 +159,141 @@ const AnimatedRoutes = () => {
           }
         />
         <Route
+          path="/posts/:postId"
+          element={
+            <AppLayout>
+              <PageTransition><PostDetailPage /></PageTransition>
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/profile/:userId"
+          element={
+            <AppLayout>
+              <PageTransition><ProfilePage /></PageTransition>
+            </AppLayout>
+          }
+        />
+
+        {/* Protected Authenticated Routes */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PageTransition><ProfilePage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/edit"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><EditProfilePage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PageTransition><FriendsPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><MessagesPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PageTransition><NotificationsPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dating"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><DatingPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dating/setup"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><DatingSetupPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dating/matches"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><MatchesPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dating/settings"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><DatingSettingsPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><SettingsPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/saved"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PageTransition><SavedPostsPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
-            <AppLayout hideRightSidebar={true}>
-              <PageTransition><AdminPage /></PageTransition>
-            </AppLayout>
+            <ProtectedRoute adminOnly={true}>
+              <AppLayout hideRightSidebar={true}>
+                <PageTransition><AdminPage /></PageTransition>
+              </AppLayout>
+            </ProtectedRoute>
           }
         />
 

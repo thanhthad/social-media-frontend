@@ -47,20 +47,20 @@ const ReportModal = ({ isOpen, onClose, targetUserId, targetUserName }) => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
+          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-rose-50/50">
+          <div className="flex justify-between items-center p-5 border-b border-gray-100 dark:border-slate-800 bg-rose-50/50 dark:bg-rose-950/20">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
                 <Flag size={18} />
               </div>
-              <h2 className="text-base font-black text-gray-900">Báo cáo {targetUserName || 'người dùng'}</h2>
+              <h2 className="text-base font-black text-gray-900 dark:text-white">Báo cáo {targetUserName || 'người dùng'}</h2>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white hover:bg-gray-100 text-gray-400 hover:text-gray-600 flex items-center justify-center transition shadow-sm"
+              className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition shadow-sm"
             >
               <X size={16} />
             </button>
@@ -68,17 +68,17 @@ const ReportModal = ({ isOpen, onClose, targetUserId, targetUserName }) => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100 text-xs text-amber-800 flex items-start gap-2">
-              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-600" />
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <p>Chúng tôi cam kết bảo vệ an toàn cho bạn. Báo cáo này hoàn toàn ẩn danh và người bị báo cáo sẽ không nhận được thông báo.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1.5">
                 Lý do báo cáo *
               </label>
               <select
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-rose-500 focus:bg-white outline-none transition cursor-pointer"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-2xl text-xs font-medium focus:ring-2 focus:ring-rose-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition cursor-pointer"
                 value={reasonId}
                 onChange={(e) => setReasonId(e.target.value)}
                 required
@@ -93,11 +93,11 @@ const ReportModal = ({ isOpen, onClose, targetUserId, targetUserName }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1.5">
                 Chi tiết bổ sung (tùy chọn)
               </label>
               <textarea
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs focus:ring-2 focus:ring-rose-500 focus:bg-white outline-none transition resize-none"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-2xl text-xs focus:ring-2 focus:ring-rose-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition resize-none"
                 rows={3}
                 placeholder="Mô tả cụ thể hơn về hành vi vi phạm..."
                 value={description}
@@ -110,7 +110,7 @@ const ReportModal = ({ isOpen, onClose, targetUserId, targetUserName }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 font-bold text-xs transition"
+                className="flex-1 py-3 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 font-bold text-xs transition"
               >
                 Hủy bỏ
               </button>

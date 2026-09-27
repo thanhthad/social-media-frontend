@@ -49,17 +49,17 @@ export default function DatingFilterDrawer({
           {/* Header */}
           <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 flex items-center justify-center">
                 <SlidersHorizontal size={18} />
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-lg">Bộ lọc tìm kiếm</h3>
-                <p className="text-xs text-gray-400">Tùy chỉnh đối tượng bạn muốn gặp gỡ</p>
+                <p className="text-xs text-gray-400 dark:text-slate-400">Tùy chỉnh đối tượng bạn muốn gặp gỡ</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition"
             >
               <X size={20} />
             </button>
@@ -69,7 +69,7 @@ export default function DatingFilterDrawer({
           <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-7 dating-scrollbar">
             {/* Gender Preference */}
             <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 flex items-center gap-1.5">
                 <Users size={14} className="text-pink-500" />
                 Đối tượng tìm kiếm
               </label>
@@ -84,8 +84,8 @@ export default function DatingFilterDrawer({
                     onClick={() => setPreferences({ ...preferences, genderPreference: key })}
                     className={`p-3.5 rounded-2xl border text-sm font-bold flex items-center justify-between transition-all ${
                       preferences.genderPreference === key
-                        ? 'border-pink-500 bg-pink-50/80 text-pink-700 shadow-sm ring-2 ring-pink-500/20'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        ? 'border-pink-500 bg-pink-50/80 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 shadow-sm ring-2 ring-pink-500/20'
+                        : 'border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -103,11 +103,11 @@ export default function DatingFilterDrawer({
             {/* Distance Slider */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 flex items-center gap-1.5">
                   <MapPin size={14} className="text-pink-500" />
                   Khoảng cách tối đa
                 </label>
-                <span className="text-sm font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
+                <span className="text-sm font-black text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/40 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-900/50">
                   {preferences.maxDistance} km
                 </span>
               </div>
@@ -121,7 +121,7 @@ export default function DatingFilterDrawer({
                 }
                 className="dating-slider"
               />
-              <div className="flex justify-between text-[11px] text-gray-400 font-semibold">
+              <div className="flex justify-between text-[11px] text-gray-400 dark:text-slate-400 font-semibold">
                 <span>Gần tôi (1 km)</span>
                 <span>Toàn quốc (500 km)</span>
               </div>
@@ -130,18 +130,18 @@ export default function DatingFilterDrawer({
             {/* Age Range Slider */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 flex items-center gap-1.5">
                   <Sparkles size={14} className="text-pink-500" />
                   Độ tuổi mong muốn
                 </label>
-                <span className="text-sm font-black text-pink-600 bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
+                <span className="text-sm font-black text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/40 px-3 py-1 rounded-full border border-pink-100 dark:border-pink-900/50">
                   {preferences.minAge} - {preferences.maxAge} tuổi
                 </span>
               </div>
 
               <div className="space-y-4 pt-2">
                 <div>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-slate-300 mb-1">
                     <span>Tuổi tối thiểu:</span>
                     <strong>{preferences.minAge} tuổi</strong>
                   </div>
@@ -162,7 +162,7 @@ export default function DatingFilterDrawer({
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-slate-300 mb-1">
                     <span>Tuổi tối đa:</span>
                     <strong>{preferences.maxAge} tuổi</strong>
                   </div>

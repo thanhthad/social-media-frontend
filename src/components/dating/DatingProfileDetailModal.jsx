@@ -109,7 +109,7 @@ export default function DatingProfileDetailModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 30 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border border-white/20 relative text-gray-900"
+          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border border-white/20 dark:border-slate-800 relative text-gray-900 dark:text-white"
         >
           {/* Floating close button */}
           <button
@@ -203,17 +203,17 @@ export default function DatingProfileDetailModal({
             {/* Profile Details Content */}
             <div className="p-6 space-y-6">
               {/* Compatibility Match Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-purple-500/10 border border-pink-200 flex items-center justify-between shadow-sm">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-purple-500/10 dark:from-pink-950/30 dark:via-rose-950/20 dark:to-purple-950/30 border border-pink-200 dark:border-pink-900/50 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 text-white flex items-center justify-center font-black shadow-md shadow-pink-500/30">
                     <Flame size={24} className="animate-pulse" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                    <h4 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-1.5">
                       Độ hòa hợp: {compatibility}%
                       <Sparkles size={14} className="text-amber-500" />
                     </h4>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       Hai bạn có nhiều sở thích và lối sống tương đồng!
                     </p>
                   </div>
@@ -223,10 +223,10 @@ export default function DatingProfileDetailModal({
               {/* Bio Section */}
               {data.bio && (
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
                     Về bản thân
                   </h3>
-                  <p className="text-sm text-gray-700 leading-relaxed font-normal bg-gray-50 p-4 rounded-2xl border border-gray-100 whitespace-pre-line">
+                  <p className="text-sm text-gray-700 dark:text-slate-200 leading-relaxed font-normal bg-gray-50 dark:bg-slate-800/80 p-4 rounded-2xl border border-gray-100 dark:border-slate-700 whitespace-pre-line">
                     {data.bio}
                   </p>
                 </div>
@@ -234,29 +234,29 @@ export default function DatingProfileDetailModal({
 
               {/* Lifestyle & Basics Pills */}
               <div className="space-y-2.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
                   Thông tin cơ bản
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {data.height && (
-                    <span className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
+                    <span className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
                       📏 Chiều cao: <strong>{data.height} cm</strong>
                     </span>
                   )}
                   {data.occupation && (
-                    <span className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
+                    <span className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
                       <Briefcase size={14} className="text-pink-500" />
                       {data.occupation}
                     </span>
                   )}
                   {data.education && (
-                    <span className="px-3.5 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
+                    <span className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition">
                       <GraduationCap size={14} className="text-indigo-500" />
                       {data.education}
                     </span>
                   )}
                   {zodiac && (
-                    <span className="px-3.5 py-2 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                    <span className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-xl flex items-center gap-2">
                       ✨ {zodiac.name} ({zodiac.trait})
                     </span>
                   )}
@@ -267,14 +267,14 @@ export default function DatingProfileDetailModal({
               {((profile.interests && profile.interests.length > 0) ||
                 (data.interests && data.interests.length > 0)) && (
                 <div className="space-y-2.5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
                     Sở thích & Đam mê
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {(profile.interests || data.interests || []).map((item, idx) => (
                       <span
                         key={idx}
-                        className="px-3.5 py-1.5 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 text-pink-700 rounded-full text-xs font-bold shadow-sm"
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/40 dark:to-rose-950/40 border border-pink-200 dark:border-pink-800/60 text-pink-700 dark:text-pink-300 rounded-full text-xs font-bold shadow-sm"
                       >
                         {typeof item === 'object' ? item.name : item}
                       </span>
@@ -284,14 +284,14 @@ export default function DatingProfileDetailModal({
               )}
 
               {/* Report Action Button */}
-              <div className="pt-4 border-t border-gray-100 flex justify-center">
+              <div className="pt-4 border-t border-gray-100 dark:border-slate-800 flex justify-center">
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     if (onReport) onReport(data);
                   }}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 transition font-semibold"
+                  className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition font-semibold"
                 >
                   <Flag size={13} />
                   Báo cáo tài khoản này
@@ -301,13 +301,13 @@ export default function DatingProfileDetailModal({
           </div>
 
           {/* Sticky Bottom Actions Bar */}
-          <div className="absolute inset-x-0 bottom-0 p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 flex justify-center items-center gap-6 z-30 shadow-lg">
+          <div className="absolute inset-x-0 bottom-0 p-4 bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 flex justify-center items-center gap-6 z-30 shadow-lg">
             <button
               onClick={() => {
                 onClose();
                 if (onAction) onAction('DISLIKE', targetUserId);
               }}
-              className="w-14 h-14 bg-white rounded-full shadow-lg border-2 border-red-500 text-red-500 hover:bg-red-50 flex items-center justify-center transition transform hover:scale-110 active:scale-95"
+              className="w-14 h-14 bg-white dark:bg-slate-800 rounded-full shadow-lg border-2 border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center transition transform hover:scale-110 active:scale-95"
               title="Bỏ qua"
             >
               <X size={24} strokeWidth={3} />
@@ -318,7 +318,7 @@ export default function DatingProfileDetailModal({
                 onClose();
                 if (onAction) onAction('SUPER_LIKE', targetUserId);
               }}
-              className="w-12 h-12 bg-white rounded-full shadow-lg border-2 border-blue-500 text-blue-500 hover:bg-blue-50 flex items-center justify-center transition transform hover:scale-110 active:scale-95"
+              className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-lg border-2 border-blue-500 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center justify-center transition transform hover:scale-110 active:scale-95"
               title="Super Like"
             >
               <Star size={20} className="fill-current" />

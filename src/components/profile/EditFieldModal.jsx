@@ -67,24 +67,23 @@ export default function EditFieldModal({
   };
 
   const inputClass =
-    'w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition text-sm';
+    'w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition text-sm';
 
   return (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.45)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* Modal card */}
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in border border-gray-100 dark:border-slate-800">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900 text-base">Chỉnh sửa — {fieldLabel}</h3>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+          <h3 className="font-bold text-gray-900 dark:text-white text-base">Chỉnh sửa — {fieldLabel}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+            className="p-1.5 rounded-lg text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition"
           >
             <X size={18} />
           </button>
@@ -131,14 +130,14 @@ export default function EditFieldModal({
 
           {/* Counter ký tự */}
           {maxLength && fieldType !== 'select' && (
-            <p className="text-[11px] text-gray-400 text-right -mt-2">
+            <p className="text-[11px] text-gray-400 dark:text-slate-400 text-right -mt-2">
               {value.length}/{maxLength}
             </p>
           )}
 
           {/* Error */}
           {error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            <p className="text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl px-3 py-2">
               ⚠️ {error}
             </p>
           )}
@@ -148,7 +147,7 @@ export default function EditFieldModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+              className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition"
             >
               Hủy
             </button>

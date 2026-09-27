@@ -109,19 +109,19 @@ export default function EditDatingProfileModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-slate-800">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 relative bg-gradient-to-r from-pink-500/5 to-rose-500/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 relative bg-gradient-to-r from-pink-500/5 to-rose-500/5 dark:from-pink-950/20 dark:to-rose-950/20">
           <div className="flex items-center justify-center gap-2 w-full">
             <Flame className="w-5 h-5 text-pink-500 fill-pink-500" />
-            <h2 className="text-lg font-black text-gray-900">
+            <h2 className="text-lg font-black text-gray-900 dark:text-white">
               Chỉnh sửa hồ sơ hẹn hò
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+            className="absolute right-4 p-2 rounded-full text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition"
           >
             <X size={20} />
           </button>
@@ -132,7 +132,7 @@ export default function EditDatingProfileModal({
           {/* Bio Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-900">Giới thiệu bản thân (Bio)</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Giới thiệu bản thân (Bio)</h3>
               <button
                 type="button"
                 onClick={() =>
@@ -145,36 +145,36 @@ export default function EditDatingProfileModal({
                     placeholder: 'Chia sẻ về tính cách, gu của bạn...',
                   })
                 }
-                className="text-xs font-bold text-pink-600 hover:text-pink-700 px-3 py-1.5 rounded-xl hover:bg-pink-50 transition flex items-center gap-1"
+                className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-3 py-1.5 rounded-xl hover:bg-pink-50 dark:hover:bg-pink-950/40 transition flex items-center gap-1"
               >
                 {bio ? <Pencil size={13} /> : <Plus size={13} />}
                 <span>{bio ? 'Chỉnh sửa' : 'Thêm'}</span>
               </button>
             </div>
-            <p className="text-xs text-gray-600 italic bg-pink-50/40 p-3.5 rounded-2xl border border-pink-100 leading-relaxed">
+            <p className="text-xs text-gray-600 dark:text-slate-300 italic bg-pink-50/40 dark:bg-pink-950/20 p-3.5 rounded-2xl border border-pink-100 dark:border-pink-900/40 leading-relaxed">
               {bio || 'Chưa có lời giới thiệu. Hãy thêm một vài câu dí dỏm để thu hút đối phương!'}
             </p>
           </div>
 
-          <div className="border-t border-gray-100" />
+          <div className="border-t border-gray-100 dark:border-slate-800" />
 
           {/* Details list */}
           <div className="space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Chi tiết thông tin cá nhân</h3>
-              <p className="text-[11px] text-gray-400">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Chi tiết thông tin cá nhân</h3>
+              <p className="text-[11px] text-gray-400 dark:text-slate-400">
                 Nhấn "Chỉnh sửa" cạnh từng mục để thay đổi 1 thông tin duy nhất
               </p>
             </div>
 
-            <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 overflow-hidden bg-gray-50/40">
+            <div className="divide-y divide-gray-100 dark:divide-slate-800 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden bg-gray-50/40 dark:bg-slate-800/40">
               {/* Tên hiển thị */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <User size={16} className="text-pink-600 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Tên hiển thị</p>
-                    <p className="text-xs font-semibold text-gray-800">{displayName || 'Chưa nhập'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{displayName || 'Chưa nhập'}</p>
                   </div>
                 </div>
                 <button
@@ -189,19 +189,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Ví dụ: Alex, Quỳnh Như...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Giới tính */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <User size={16} className="text-purple-600 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Giới tính</p>
-                    <p className="text-xs font-semibold text-gray-800">{genderLabels[gender] || 'Chưa chọn'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{genderLabels[gender] || 'Chưa chọn'}</p>
                   </div>
                 </div>
                 <button
@@ -219,19 +219,19 @@ export default function EditDatingProfileModal({
                       ],
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Ngày sinh */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <Calendar size={16} className="text-indigo-600 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ngày sinh</p>
-                    <p className="text-xs font-semibold text-gray-800">{birthday ? String(birthday).substring(0, 10) : 'Chưa cập nhật'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{birthday ? String(birthday).substring(0, 10) : 'Chưa cập nhật'}</p>
                   </div>
                 </div>
                 <button
@@ -244,19 +244,19 @@ export default function EditDatingProfileModal({
                       initialValue: birthday ? String(birthday).substring(0, 10) : '',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Chiều cao */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <Sparkles size={16} className="text-amber-500 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chiều cao</p>
-                    <p className="text-xs font-semibold text-gray-800">{height ? `${height} cm` : 'Chưa cập nhật'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{height ? `${height} cm` : 'Chưa cập nhật'}</p>
                   </div>
                 </div>
                 <button
@@ -270,19 +270,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Ví dụ: 172',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Nghề nghiệp */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <Briefcase size={16} className="text-amber-600 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nghề nghiệp</p>
-                    <p className="text-xs font-semibold text-gray-800">{occupation || 'Chưa thêm nghề nghiệp'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{occupation || 'Chưa thêm nghề nghiệp'}</p>
                   </div>
                 </div>
                 <button
@@ -297,19 +297,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Kỹ sư phần mềm, Designer...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Học vấn */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <GraduationCap size={16} className="text-teal-600 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Trường học / Học vấn</p>
-                    <p className="text-xs font-semibold text-gray-800">{education || 'Chưa thêm học vấn'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{education || 'Chưa thêm học vấn'}</p>
                   </div>
                 </div>
                 <button
@@ -324,19 +324,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Đại học Bách Khoa...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Tỉnh / Thành phố */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <MapPin size={16} className="text-rose-500 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Tỉnh / Thành phố</p>
-                    <p className="text-xs font-semibold text-gray-800">{city || 'Chưa cập nhật'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{city || 'Chưa cập nhật'}</p>
                   </div>
                 </div>
                 <button
@@ -351,19 +351,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Hà Nội, TP. HCM...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Quận / Huyện */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <MapPin size={16} className="text-rose-400 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Quận / Huyện</p>
-                    <p className="text-xs font-semibold text-gray-800">{district || 'Chưa cập nhật'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{district || 'Chưa cập nhật'}</p>
                   </div>
                 </div>
                 <button
@@ -378,19 +378,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Cầu Giấy, Hoàn Kiếm...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Quốc gia */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <Globe size={16} className="text-emerald-500 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Quốc gia</p>
-                    <p className="text-xs font-semibold text-gray-800">{country || 'Việt Nam'}</p>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">{country || 'Việt Nam'}</p>
                   </div>
                 </div>
                 <button
@@ -405,19 +405,19 @@ export default function EditDatingProfileModal({
                       placeholder: 'Việt Nam...',
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
               </div>
 
               {/* Hiển thị tìm kiếm (Visibility) */}
-              <div className="flex items-center justify-between p-3.5 hover:bg-white transition">
+              <div className="flex items-center justify-between p-3.5 hover:bg-white dark:hover:bg-slate-800/80 transition">
                 <div className="flex items-center gap-3">
                   <Eye size={16} className="text-pink-500 flex-shrink-0" />
                   <div>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Hiển thị tìm kiếm</p>
-                    <p className="text-xs font-semibold text-gray-800">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-slate-200">
                       {visibilityLabels[visibility] || 'Công khai'}
                     </p>
                   </div>
@@ -436,7 +436,7 @@ export default function EditDatingProfileModal({
                       ],
                     })
                   }
-                  className="text-xs font-bold text-pink-600 hover:text-pink-700 px-2.5 py-1 rounded-lg hover:bg-pink-50 transition"
+                  className="text-xs font-bold text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-pink-300 px-2.5 py-1 rounded-lg hover:bg-pink-50 dark:hover:bg-pink-950/40 transition"
                 >
                   Chỉnh sửa
                 </button>
@@ -446,8 +446,8 @@ export default function EditDatingProfileModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-          <p className="text-[11px] text-gray-400">
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex items-center justify-between">
+          <p className="text-[11px] text-gray-400 dark:text-slate-400">
             Thay đổi từng mục được lưu ngay lập tức
           </p>
           <button
